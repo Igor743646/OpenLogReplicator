@@ -1250,6 +1250,7 @@ namespace OpenLogReplicator {
                                   static_cast<uint64_t>(lwnConfirmedBlock) * reader->getBlockSize());
 
         ctx->info(0, "processing redo log: " + toString() + " offset: " + std::to_string(reader->getBufferStart()));
+        // Load Adaptive schema if it is exist
         if (ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA) && !metadata->schema->loaded && ctx->versionStr.length() > 0) {
             metadata->loadAdaptiveSchema();
             metadata->schema->loaded = true;
