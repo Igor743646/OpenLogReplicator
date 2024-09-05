@@ -30,18 +30,52 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 
 typedef uint32_t typeResetlogs;
 typedef uint32_t typeActivation;
+/*
+   typeSum - is a type for checksum.
+*/
 typedef uint16_t typeSum;
+/*
+   TODO: ?????
+*/
 typedef uint16_t typeOp1;
+/*
+   TODO: ?????
+*/
 typedef uint32_t typeOp2;
+/*
+   ConId - is a container id for the database. This is used for multi-tenant databases.
+   -1 is the default value and means that the database is single-tenant.
+*/
 typedef int16_t typeConId;
 typedef uint64_t typeUba;
 typedef uint32_t typeSeq;
+/*
+   SCN - is a huge 6 byte (48 bits) number with two components to it: 
+   - SCN Base is a 32 bit (4 Bytes) number.
+   - SCB Wrap is a 16 bit (2 Bytes) number.
+
+   Both BASE & WRAP are used to control the SCN’s increment and to ensure that the database won’t run out of it. 
+   SCN_WRAP is incremented by 1 when SCN_BASE reaches the value of 4 Billion and SCN_BASE becomes 0.
+   From Oracle Version 12c, the SCN number is an 8 byte number.
+*/
 typedef uint64_t typeScn;
 typedef uint16_t typeSubScn;
+/* 
+   Some 64bit index 
+*/
 typedef uint64_t typeIdx;
+/*
+   SLT - is a slot number. Part of XID.
+*/
 typedef uint16_t typeSlt;
+/*
+   SQN - is a sequence number. Part of XID.
+*/
 typedef uint32_t typeSqn;
 typedef uint8_t typeRci;
+/*
+   USN - is a undo segment number. Part of XID.
+*/
 typedef int16_t typeUsn;
 typedef uint64_t typeXidMap;
 typedef uint16_t typeAfn;
@@ -77,8 +111,8 @@ typedef int64_t time_ut;
 #define PRINTUBA(__uba)                         "0x"<<std::setfill('0')<<std::setw(8)<<std::hex<<BLOCK(__uba)<<"."<<std::setfill('0')<<std::setw(4)<<std::hex<<SEQUENCE(__uba)<<"."<<std::setfill('0')<<std::setw(2)<<std::hex<<static_cast<uint32_t>RECORD(__uba)
 
 #define SCN(__scn1, __scn2)                      (((static_cast<uint64_t>(__scn1))<<32)|(__scn2))
-#define PRINTSCN48(__scn)                       "0x"<<std::setfill('0')<<std::setw(4)<<std::hex<<(static_cast<uint32_t>((__scn)>>32)&0xFFFF)<<"."<<std::setw(8)<<((__scn)&0xFFFFFFFF)
-#define PRINTSCN64(__scn)                       "0x"<<std::setfill('0')<<std::setw(16)<<std::hex<<(__scn)
-#define PRINTSCN64D(__scn)                      "0x"<<std::setfill('0')<<std::setw(4)<<std::hex<<(static_cast<uint32_t>((__scn)>>48)&0xFFFF)<<"."<<std::setw(4)<<(static_cast<uint32_t>((__scn)>>32)&0xFFFF)<<"."<<std::setw(8)<<((__scn)&0xFFFFFFFF)
-
+#define PRINTSCN48(__scn)                       "0x"<<std::setfill('0')<<std::setw(4)<<std::hex<<(static_cast<uint32_t>((__scn)>>32)&0xFFFF)<<"."<<std::setw(8)<<((__scn)&0xFFFFFFFF)<<std::dec<<" ("<<__scn<<")"<<std::hex
+#define PRINTSCN64(__scn)                       "0x"<<std::setfill('0')<<std::setw(16)<<std::hex<<(__scn)<<std::dec<<" ("<<__scn<<")"<<std::hex
+#define PRINTSCN64D(__scn)                      "0x"<<std::setfill('0')<<std::setw(4)<<std::hex<<(static_cast<uint32_t>((__scn)>>48)&0xFFFF)<<"."<<std::setw(4)<<(static_cast<uint32_t>((__scn)>>32)&0xFFFF)<<"."<<std::setw(8)<<((__scn)&0xFFFFFFFF)<<std::dec<<" ("<<__scn<<")"<<std::hex
+ 
 #endif

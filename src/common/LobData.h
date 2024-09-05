@@ -25,6 +25,30 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #define LOB_DATA_H_
 
 namespace OpenLogReplicator {
+
+    class RedoLogRecord;
+
+    class Lob final {
+    public:
+
+        Lob();
+        explicit Lob(uint8_t* newData);
+        explicit Lob(const RedoLogRecord* redoLogRecord1);
+        Lob(const Lob& newLob) = delete;
+        Lob& operator=(const Lob& newLob) = delete;
+        Lob(Lob&& newLob);
+        Lob& operator=(Lob&& newLob);
+        virtual ~Lob();
+
+        void clear();
+        uint64_t lobSize() const;
+        RedoLogRecord* redoLogRecord() const;
+        uint8_t* lobData() const;
+
+    private:
+        uint8_t* data;
+    };
+
     class LobDataElement final {
     public:
         LobDataElement();
@@ -42,7 +66,7 @@ namespace OpenLogReplicator {
         LobData();
         virtual ~LobData();
 
-        std::map<LobDataElement, uint8_t*> dataMap;
+        std::map<LobDataElement, Lob> dataMap;
         std::map<uint32_t, typeDba> indexMap;
 
         uint32_t pageSize;

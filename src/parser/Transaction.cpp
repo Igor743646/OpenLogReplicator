@@ -32,7 +32,7 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #include "TransactionBuffer.h"
 
 namespace OpenLogReplicator {
-    Transaction::Transaction(typeXid newXid, std::map<LobKey, uint8_t*>* newOrphanedLobs, XmlCtx* newXmlCtx) :
+    Transaction::Transaction(typeXid newXid, std::map<LobKey, Lob>* newOrphanedLobs, XmlCtx* newXmlCtx) :
             deallocTc(nullptr),
             opCodes(0),
             mergeBuffer(nullptr),
@@ -53,7 +53,7 @@ namespace OpenLogReplicator {
             lastSplit(false),
             dump(false),
             size(0) {
-        lobCtx.orphanedLobs = newOrphanedLobs;
+        lobCtx.orphanedLobs = newOrphanedLobs; // from TransactionBuffer
     }
 
     void Transaction::add(const Metadata* metadata, TransactionBuffer* transactionBuffer, RedoLogRecord* redoLogRecord1) {

@@ -28,6 +28,17 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #define TYPE_XID_H_
 
 namespace OpenLogReplicator {
+    /*
+        Xid - is a transaction ID, a number that uniquely identifies the transaction.
+        Xid consists of three parts: 
+        - XIDUSN is a Undo Segment Number.
+        - XIDSLOT is a Slot Number.
+        - XIDSQN is a Sequence Number.
+        
+        |Usn|Slt|Sqn|
+        |-|-|-|
+        |16|16|32|
+    */
     class typeXid final {
         uint64_t data;
     public:

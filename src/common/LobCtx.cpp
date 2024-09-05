@@ -31,7 +31,7 @@ namespace OpenLogReplicator {
         for (auto orphanedLobsIt = orphanedLobs->upper_bound(lobKey);
              orphanedLobsIt != orphanedLobs->end() && orphanedLobsIt->first.lobId == lobId;) {
 
-            addLob(ctx, lobId, orphanedLobsIt->first.page, 0, orphanedLobsIt->second, xid, offset);
+            addLob(ctx, lobId, orphanedLobsIt->first.page, 0, std::move(orphanedLobsIt->second), xid, offset);
 
             if (unlikely(ctx->trace & Ctx::TRACE_LOB))
                 ctx->logTrace(Ctx::TRACE_LOB, "id: " + lobId.lower() + " page: " + std::to_string(orphanedLobsIt->first.page));
@@ -40,7 +40,7 @@ namespace OpenLogReplicator {
         }
     }
 
-    void LobCtx::addLob(const Ctx* ctx, const typeLobId& lobId, typeDba page, uint64_t pageOffset, uint8_t* data, typeXid xid, uint64_t offset) {
+    void LobCtx::addLob(const Ctx* ctx, const typeLobId& lobId, typeDba page, uint64_t pageOffset, Lob data, typeXid xid, uint64_t offset) {
         LobData* lobData;
         auto lobsIt = lobs.find(lobId);
         if (lobsIt != lobs.end()) {
@@ -55,12 +55,11 @@ namespace OpenLogReplicator {
         if (dataMapIt != lobData->dataMap.end()) {
             if (unlikely(ctx->trace & Ctx::TRACE_LOB))
                 ctx->logTrace(Ctx::TRACE_LOB, "id: " + lobId.lower() + " page: " + std::to_string(page) + " OVERWRITE");
-            delete[] dataMapIt->second;
         }
 
-        lobData->dataMap.insert_or_assign(element, data);
+        auto [dataMapItInserted, _] = lobData->dataMap.insert_or_assign(element, std::move(data));
 
-        const RedoLogRecord* redoLogRecordLob = reinterpret_cast<const RedoLogRecord*>(data + sizeof(uint64_t));
+        const RedoLogRecord* redoLogRecordLob = dataMapItInserted->second.redoLogRecord();
         if (redoLogRecordLob->lobPageSize != 0) {
             if (lobData->pageSize == 0) {
                 lobData->pageSize = redoLogRecordLob->lobPageSize;
