@@ -34,12 +34,15 @@ namespace OpenLogReplicator {
     class TransactionBuffer;
     class XmlCtx;
 
+    /*
+        LWN Member - Log Writer Number Member.
+    */
     struct LwnMember {
-        uint64_t offset;
-        uint32_t size;
-        typeScn scn;
-        typeSubScn subScn;
-        typeBlk block;
+        uint64_t offset;    // offset of block
+        uint32_t size;      // size of LWN
+        typeScn scn;        // current SCN
+        typeSubScn subScn;  // current subSCN
+        typeBlk block;      // number of block
 
         bool operator<(const LwnMember& other) const {
             if (scn < other.scn)

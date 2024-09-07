@@ -588,8 +588,8 @@ namespace OpenLogReplicator {
                         hasNext = false;
                     }
 
-                    RedoLogRecord* redoLogRecordLob = reinterpret_cast<RedoLogRecord*>(dataMapIt->second + sizeof(uint64_t));
-                    redoLogRecordLob->dataExt = reinterpret_cast<uint8_t*>(dataMapIt->second + sizeof(uint64_t) + sizeof(RedoLogRecord));
+                    RedoLogRecord* redoLogRecordLob = dataMapIt->second.redoLogRecord();
+                    redoLogRecordLob->dataExt = dataMapIt->second.lobData();
 
                     valueBufferCheck(chunkSize * 4, offset);
                     addLobToOutput(redoLogRecordLob->data() + redoLogRecordLob->lobData, chunkSize, charsetId, offset, appendData, isClob,
@@ -678,8 +678,8 @@ namespace OpenLogReplicator {
                         }
 
                         while (dataMapIt != lobData->dataMap.end() && dataMapIt->first.dba == page) {
-                            RedoLogRecord* redoLogRecordLob = reinterpret_cast<RedoLogRecord*>(dataMapIt->second + sizeof(uint64_t));
-                            redoLogRecordLob->dataExt = reinterpret_cast<uint8_t*>(dataMapIt->second + sizeof(uint64_t) + sizeof(RedoLogRecord));
+                            RedoLogRecord* redoLogRecordLob = dataMapIt->second.redoLogRecord();
+                            redoLogRecordLob->dataExt = dataMapIt->second.lobData();
                             if (j < pageCnt)
                                 chunkSize = redoLogRecordLob->lobDataSize;
                             else
@@ -859,8 +859,8 @@ namespace OpenLogReplicator {
                                     }
 
                                     while (dataMapIt != lobData->dataMap.end() && dataMapIt->first.dba == page) {
-                                        RedoLogRecord* redoLogRecordLob = reinterpret_cast<RedoLogRecord*>(dataMapIt->second + sizeof(uint64_t));
-                                        redoLogRecordLob->dataExt = reinterpret_cast<uint8_t*>(dataMapIt->second + sizeof(uint64_t) + sizeof(RedoLogRecord));
+                                        RedoLogRecord* redoLogRecordLob = dataMapIt->second.redoLogRecord();
+                                        redoLogRecordLob->dataExt = dataMapIt->second.lobData();
                                         chunkSize = redoLogRecordLob->lobDataSize;
                                         if (i == lobPages - 1U && j == pageCnt - 1U)
                                             hasNext = false;
@@ -916,8 +916,8 @@ namespace OpenLogReplicator {
                                             return false;
                                         }
 
-                                        RedoLogRecord* redoLogRecordLob = reinterpret_cast<RedoLogRecord*>(dataMapIt->second + sizeof(uint64_t));
-                                        redoLogRecordLob->dataExt = reinterpret_cast<uint8_t*>(dataMapIt->second + sizeof(uint64_t) + sizeof(RedoLogRecord));
+                                        RedoLogRecord* redoLogRecordLob = dataMapIt->second.redoLogRecord();
+                                        redoLogRecordLob->dataExt = dataMapIt->second.lobData();
                                         chunkSize = redoLogRecordLob->lobDataSize;
                                         if (listPage == 0 && i == aSiz - 1U && j == pageCnt - 1U)
                                             hasNext = false;
@@ -997,8 +997,8 @@ namespace OpenLogReplicator {
                                     return false;
                                 }
 
-                                RedoLogRecord* redoLogRecordLob = reinterpret_cast<RedoLogRecord*>(dataMapIt->second + sizeof(uint64_t));
-                                redoLogRecordLob->dataExt = reinterpret_cast<uint8_t*>(dataMapIt->second + sizeof(uint64_t) + sizeof(RedoLogRecord));
+                                RedoLogRecord* redoLogRecordLob = dataMapIt->second.redoLogRecord();
+                                redoLogRecordLob->dataExt = dataMapIt->second.lobData();
                                 chunkSize = redoLogRecordLob->lobDataSize;
                                 if (i == lobPages - 1U && j == pageCnt - 1U)
                                     hasNext = false;

@@ -132,17 +132,20 @@ namespace OpenLogReplicator {
             uint16_t thread = 1; // TODO: verify field size/position
             *ctx->dumpStream << " \n";
 
-            if (ctx->version < RedoLogRecord::REDO_VERSION_12_1)
-                *ctx->dumpStream << "REDO RECORD - Thread:" << thread << " RBA: 0x" << std::setfill('0') << std::setw(6) << std::hex << sequence << "." <<
-                                std::setfill('0') << std::setw(8) << std::hex << lwnMember->block << "." << std::setfill('0') << std::setw(4) <<
-                                std::hex << lwnMember->offset << " LEN: 0x" << std::setfill('0') << std::setw(4) << std::hex << recordSize << " VLD: 0x" <<
-                                std::setfill('0') << std::setw(2) << std::hex << static_cast<uint64_t>(vld) << '\n';
+            *ctx->dumpStream << "########################################################\n";
+            *ctx->dumpStream << "#                     REDO RECORD                      #\n";
+            *ctx->dumpStream << "########################################################\n";
+            *ctx->dumpStream << "Thread:" << thread << " RBA: 0x" << std::setfill('0') << std::setw(6) << std::hex << sequence << "." <<
+                            std::setfill('0') << std::setw(8) << std::hex << lwnMember->block << "." << std::setfill('0') << std::setw(4) <<
+                            std::hex << lwnMember->offset << " LEN: 0x" << std::setfill('0') << std::setw(4) << std::hex << recordSize << " VLD: 0x" <<
+                            std::setfill('0') << std::setw(2) << std::hex << static_cast<uint64_t>(vld);
+
+            if (ctx->version < RedoLogRecord::REDO_VERSION_12_1) {
+                *ctx->dumpStream << '\n';
+            }
             else {
                 uint32_t conUid = ctx->read32(data + 16);
-                *ctx->dumpStream << "REDO RECORD - Thread:" << thread << " RBA: 0x" << std::setfill('0') << std::setw(6) << std::hex << sequence <<
-                                "." << std::setfill('0') << std::setw(8) << std::hex << lwnMember->block << "." << std::setfill('0') << std::setw(4) <<
-                                std::hex << lwnMember->offset << " LEN: 0x" << std::setfill('0') << std::setw(4) << std::hex << recordSize << " VLD: 0x" <<
-                                std::setfill('0') << std::setw(2) << std::hex << static_cast<uint64_t>(vld) << " CON_UID: " << std::dec << conUid << '\n';
+                *ctx->dumpStream << " CON_UID: " << std::dec << conUid << '\n';
             }
 
             if (ctx->dumpRawData > 0) {
@@ -199,10 +202,7 @@ namespace OpenLogReplicator {
 
         while (offset < recordSize) {
             int64_t vectorPrev = vectorCur;
-            if (vectorPrev == -1)
-                vectorCur = 0;
-            else
-                vectorCur = 1 - vectorPrev;
+            vectorCur = (vectorPrev + 1) % 2;
 
             memset(reinterpret_cast<void*>(&redoLogRecord[vectorCur]), 0, sizeof(RedoLogRecord));
             redoLogRecord[vectorCur].vectorNo = (++vectors);
@@ -1219,7 +1219,7 @@ namespace OpenLogReplicator {
         }
         ctx->suppLogSize = 0;
 
-        if (reader->getBufferStart() == reader->getBlockSize() * 2) {
+        if (reader->getBufferStart() == reader->getBlockSize() * 2) { // if it is beginning of .arc file
             if (unlikely(ctx->dumpRedoLog >= 1)) {
                 std::string fileName = ctx->dumpPath + "/" + std::to_string(sequence) + ".olr";
                 ctx->dumpStream->open(fileName);
@@ -1229,7 +1229,7 @@ namespace OpenLogReplicator {
                     ctx->dumpRedoLog = 0;
                 }
                 std::ostringstream ss;
-                reader->printHeaderInfo(ss, path);
+                reader->printHeaderInfo(ss, path); // Print header info
                 *ctx->dumpStream << ss.str();
             }
         }
@@ -1240,7 +1240,7 @@ namespace OpenLogReplicator {
                 throw RedoLogException(50047, "incorrect offset start: " + std::to_string(metadata->offset) +
                                               " - not a multiplication of block size: " + std::to_string(reader->getBlockSize()));
 
-            lwnConfirmedBlock = metadata->offset / reader->getBlockSize();
+            lwnConfirmedBlock = metadata->offset / reader->getBlockSize(); // Calc start block
             if (unlikely(ctx->trace & Ctx::TRACE_CHECKPOINT))
                 ctx->logTrace(Ctx::TRACE_CHECKPOINT, "setting reader start position to " + std::to_string(metadata->offset) + " (block " +
                                                      std::to_string(lwnConfirmedBlock) + ")");
@@ -1268,7 +1268,7 @@ namespace OpenLogReplicator {
         }
 
         time_ut cStart = ctx->clock->getTimeUt();
-        reader->setStatusRead();
+        reader->setStatusRead(); // allow reader to read blocks
         LwnMember* lwnMember;
         uint64_t blockOffset;
         uint64_t confirmedBufferStart = reader->getBufferStart();

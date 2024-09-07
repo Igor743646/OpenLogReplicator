@@ -35,10 +35,13 @@ namespace OpenLogReplicator {
     class Transaction;
     class XmlCtx;
 
+    /*
+        Bidirectional list element of transaction buffer
+    */
     struct TransactionChunk {
-        static constexpr uint64_t FULL_BUFFER_SIZE = 65536;
-        static constexpr uint64_t HEADER_BUFFER_SIZE = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint8_t*) +
-                                                       sizeof(TransactionChunk*) + sizeof(TransactionChunk*);
+        static constexpr uint64_t FULL_BUFFER_SIZE = 65536; // 64Kb
+        static constexpr uint64_t HEADER_BUFFER_SIZE = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint8_t*) + // 48 byte
+                                                       sizeof(TransactionChunk*) + sizeof(TransactionChunk*); 
         static constexpr uint64_t DATA_BUFFER_SIZE = FULL_BUFFER_SIZE - HEADER_BUFFER_SIZE;
 
         uint64_t elements;
@@ -68,7 +71,7 @@ namespace OpenLogReplicator {
 
         std::mutex mtx;
         std::unordered_map<typeXidMap, Transaction*> xidTransactionMap;
-        std::map<LobKey, uint8_t*> orphanedLobs;
+        std::map<LobKey, Lob> orphanedLobs;
 
     public:
         std::set<typeXid> skipXidList;
@@ -80,18 +83,55 @@ namespace OpenLogReplicator {
         virtual ~TransactionBuffer();
 
         void purge();
+
+        /// @brief Find transaction or create it if `add` is true. 
+        /// @param xmlCtx pointer to xml context
+        /// @param xid xid
+        /// @param conId container id
+        /// @param old ?
+        /// @param add ?
+        /// @param rollback ?
+        /// @return founded or new transaction
         [[nodiscard]] Transaction* findTransaction(XmlCtx* xmlCtx, typeXid xid, typeConId conId, bool old, bool add, bool rollback);
+        
+        /// @brief Delete transaction from buffer.
+        /// @param xid xid
+        /// @param conId container id
         void dropTransaction(typeXid xid, typeConId conId);
         void addTransactionChunk(Transaction* transaction, RedoLogRecord* redoLogRecord);
         void addTransactionChunk(Transaction* transaction, RedoLogRecord* redoLogRecord1, const RedoLogRecord* redoLogRecord2);
         void rollbackTransactionChunk(Transaction* transaction);
+        
+        /// @brief Allocate new transaction chank (64Kb) with self memory position info:
+        ///
+        /// header  - pointer to 1Mb memory chunk
+        ///
+        /// pos     - position in memory chunk (0-31)
+        /// @return pointer to transaction chunk.
         [[nodiscard]] TransactionChunk* newTransactionChunk();
+        
+        /// @brief Delete transaction chunk. Mark the space as unusable, or after deleting 16 transaction chunks in one memory block, delete the memory block.
+        /// @param tc pointer to transaction
         void deleteTransactionChunk(TransactionChunk* tc);
+        
+        /// @brief Delete all related transaction chunks.
+        /// @param tc pointer to transaction
         void deleteTransactionChunks(TransactionChunk* tc);
         void mergeBlocks(uint8_t* mergeBuffer, RedoLogRecord* redoLogRecord1, const RedoLogRecord* redoLogRecord2);
+        
+        /// @brief Return information about transactions.
+        /// @param minSequence minimum of read sequence 
+        /// @param minOffset minimum of read block
+        /// @param minXid minimum of read xid
         void checkpoint(typeSeq& minSequence, uint64_t& minOffset, typeXid& minXid);
         void addOrphanedLob(RedoLogRecord* redoLogRecord1);
-        uint8_t* allocateLob(const RedoLogRecord* redoLogRecord1) const;
+
+        /// @brief Allocate data with lob and record data:
+        /// 
+        /// | lobSize (8) | log record (216) | lob data (?) |
+        /// @param redoLogRecord1 log record
+        /// @return allocated part of lob with log record info.
+        Lob allocateLob(const RedoLogRecord* redoLogRecord1) const;
     };
 }
 

@@ -67,7 +67,7 @@ namespace OpenLogReplicator {
         // Attributes
         std::unordered_map<std::string, std::string> attributes;
 
-        explicit Transaction(typeXid newXid, std::map<LobKey, uint8_t*>* newOrphanedLobs, XmlCtx* newXmlCtx);
+        explicit Transaction(typeXid newXid, std::map<LobKey, Lob>* newOrphanedLobs, XmlCtx* newXmlCtx);
 
         void add(const Metadata* metadata, TransactionBuffer* transactionBuffer, RedoLogRecord* redoLogRecord1);
         void add(const Metadata* metadata, TransactionBuffer* transactionBuffer, RedoLogRecord* redoLogRecord1, const RedoLogRecord* redoLogRecord2);

@@ -39,11 +39,6 @@ namespace OpenLogReplicator {
         skipXidList.clear();
         dumpXidList.clear();
         brokenXidMapList.clear();
-
-        for (const auto& orphanedLobsIt: orphanedLobs) {
-            uint8_t* data = orphanedLobsIt.second;
-            delete[] data;
-        }
         orphanedLobs.clear();
     }
 
@@ -57,25 +52,26 @@ namespace OpenLogReplicator {
     }
 
     Transaction* TransactionBuffer::findTransaction(XmlCtx* xmlCtx, typeXid xid, typeConId conId, bool old, bool add, bool rollback) {
+        // xidMap = | 0 (16) | Container id (16) | Undo segment number (16) | Slot number (16) |
         typeXidMap xidMap = (xid.getData() >> 32) | ((static_cast<uint64_t>(conId)) << 32);
         Transaction* transaction;
 
-        auto xidTransactionMapIt = xidTransactionMap.find(xidMap);
-        if (xidTransactionMapIt != xidTransactionMap.end()) {
-            transaction = xidTransactionMapIt->second;
-            if (unlikely(!rollback && (!old || transaction->xid != xid)))
+        auto xidTransactionMapIt = xidTransactionMap.find(xidMap);          // Find transaction.
+        if (xidTransactionMapIt != xidTransactionMap.end()) {               // If there is it
+            transaction = xidTransactionMapIt->second;                      // return it,
+            if (unlikely(!rollback && (!old || transaction->xid != xid)))   // ??
                 throw RedoLogException(50039, "transaction " + xid.toString() + " conflicts with " + transaction->xid.toString());
-        } else {
-            if (!add)
+        } else {                                                            // else create transaction
+            if (!add)                                                       // if add is true.
                 return nullptr;
 
-            transaction = new Transaction(xid, &orphanedLobs, xmlCtx);
+            transaction = new Transaction(xid, &orphanedLobs, xmlCtx);      // Create new transaction
             {
                 std::unique_lock<std::mutex> lck(mtx);
-                xidTransactionMap.insert_or_assign(xidMap, transaction);
+                xidTransactionMap.insert_or_assign(xidMap, transaction);    // Save it by xidMap
             }
 
-            if (dumpXidList.find(xid) != dumpXidList.end())
+            if (dumpXidList.find(xid) != dumpXidList.end())                 // If transaction in dump ?, mark it
                 transaction->dump = true;
         }
 
@@ -96,44 +92,47 @@ namespace OpenLogReplicator {
         uint64_t pos;
         uint64_t freeMap;
         if (!partiallyFullChunks.empty()) {
-            auto partiallyFullChunksIt = partiallyFullChunks.cbegin();
-            chunk = partiallyFullChunksIt->first;
-            freeMap = partiallyFullChunksIt->second;
-            pos = ffs(freeMap) - 1;
-            freeMap &= ~(1 << pos);
+            auto partiallyFullChunksIt = partiallyFullChunks.cbegin();  // get random chunk
+            chunk = partiallyFullChunksIt->first;                       // exp address: 0xAF78FSF4
+            freeMap = partiallyFullChunksIt->second;                    // exp: 0b1111111111110010
+            pos = ffs(freeMap) - 1;                                     // exp: 2 - 1 = 1       ^  position in 1Mb memory chunk
+            freeMap &= ~(1 << pos);                                     // exp: 0b1111111111110000
             if (freeMap == 0)
-                partiallyFullChunks.erase(chunk);
+                partiallyFullChunks.erase(chunk);                       // delete if chunk is full
             else
-                partiallyFullChunks.insert_or_assign(chunk, freeMap);
+                partiallyFullChunks.insert_or_assign(chunk, freeMap);   // else update chunk info
         } else {
-            chunk = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_TRANSACTIONS, false);
-            pos = 0;
-            freeMap = BUFFERS_FREE_MASK & (~1);
-            partiallyFullChunks.insert_or_assign(chunk, freeMap);
+            chunk = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_TRANSACTIONS, false);    // get chunk 1Mb
+            pos = 0;                                                                // pos = 0
+            freeMap = BUFFERS_FREE_MASK & (~1);                                     // 0b1111111111111110
+            partiallyFullChunks.insert_or_assign(chunk, freeMap);                   // mark 1 chunk full
         }
 
         tc = reinterpret_cast<TransactionChunk*>(chunk + TransactionChunk::FULL_BUFFER_SIZE * pos);
-        memset(reinterpret_cast<void*>(tc), 0, TransactionChunk::HEADER_BUFFER_SIZE);
-        tc->header = chunk;
+        memset(reinterpret_cast<void*>(tc), 0, TransactionChunk::HEADER_BUFFER_SIZE);               // Clear header 
+        // write self position
+        tc->header = chunk; 
         tc->pos = pos;
         return tc;
     }
 
     void TransactionBuffer::deleteTransactionChunk(TransactionChunk* tc) {
+        // get self position
         uint8_t* chunk = tc->header;
         typePos pos = tc->pos;
         uint64_t freeMap = partiallyFullChunks[chunk];
 
-        freeMap |= (1 << pos);
+        freeMap |= (1 << pos);                          // exp: 0b1111111111110000 | 0b10 = 0b1111111111110010
 
         if (freeMap == BUFFERS_FREE_MASK) {
-            ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_TRANSACTIONS, chunk, false);
+            ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_TRANSACTIONS, chunk, false);    // delete 1Mb free memory chunk
             partiallyFullChunks.erase(chunk);
         } else
-            partiallyFullChunks.insert_or_assign(chunk, freeMap);
+            partiallyFullChunks.insert_or_assign(chunk, freeMap);                   // update chunk info
     }
 
     void TransactionBuffer::deleteTransactionChunks(TransactionChunk* tc) {
+        // ? assert tc->prev == nullptr
         TransactionChunk* nextTc;
         while (tc != nullptr) {
             nextTc = tc->next;
@@ -374,20 +373,10 @@ namespace OpenLogReplicator {
             return;
         }
 
-        orphanedLobs.insert_or_assign(lobKey, allocateLob(redoLogRecord1));
+        orphanedLobs.emplace(lobKey, allocateLob(redoLogRecord1));
     }
 
-    uint8_t* TransactionBuffer::allocateLob(const RedoLogRecord* redoLogRecord1) const {
-        uint64_t lobSize = redoLogRecord1->size + sizeof(RedoLogRecord) + sizeof(uint64_t);
-        uint8_t* data = new uint8_t[lobSize];
-        *(reinterpret_cast<uint64_t*>(data)) = lobSize;
-        memcpy(reinterpret_cast<void*>(data + sizeof(uint64_t)),
-               reinterpret_cast<const void*>(redoLogRecord1), sizeof(RedoLogRecord));
-        memcpy(reinterpret_cast<void*>(data + sizeof(uint64_t) + sizeof(RedoLogRecord)),
-               reinterpret_cast<const void*>(redoLogRecord1->data()), redoLogRecord1->size);
-        RedoLogRecord* redoLogRecord1new = reinterpret_cast<RedoLogRecord*>(data + sizeof(uint64_t));
-        redoLogRecord1new->dataExt = data + sizeof(uint64_t) + sizeof(RedoLogRecord);
-
-        return data;
+    Lob TransactionBuffer::allocateLob(const RedoLogRecord* redoLogRecord1) const {
+        return Lob(redoLogRecord1);
     }
 }
