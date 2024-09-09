@@ -35,11 +35,11 @@ typedef uint32_t typeActivation;
 */
 typedef uint16_t typeSum;
 /*
-   TODO: ?????
+   Operation code
 */
 typedef uint16_t typeOp1;
 /*
-   TODO: ?????
+   Two operations codes
 */
 typedef uint32_t typeOp2;
 /*

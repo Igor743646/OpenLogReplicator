@@ -64,8 +64,7 @@ namespace OpenLogReplicator {
             metadata(newMetadata),
             transactionBuffer(newTransactionBuffer),
             lastTransaction(nullptr),
-            lwnAllocated(0),
-            lwnAllocatedMax(0),
+            lwnManager(newCtx),
             lwnTimestamp(0),
             lwnScn(0),
             lwnCheckpointBlock(0),
@@ -75,30 +74,14 @@ namespace OpenLogReplicator {
             firstScn(Ctx::ZERO_SCN),
             nextScn(Ctx::ZERO_SCN),
             reader(nullptr) {
-
         memset(reinterpret_cast<void*>(&zero), 0, sizeof(RedoLogRecord));
-
-        lwnChunks[0] = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_PARSER, false);
-        auto size = reinterpret_cast<uint64_t*>(lwnChunks[0]);
-        *size = sizeof(uint64_t);
-        lwnAllocated = 1;
-        lwnAllocatedMax = 1;
-        lwnMembers[0] = 0;
     }
 
     Parser::~Parser() {
-        while (lwnAllocated > 0) {
-            ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_PARSER, lwnChunks[--lwnAllocated], false);
-        }
     }
 
     void Parser::freeLwn() {
-        while (lwnAllocated > 1) {
-            ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_PARSER, lwnChunks[--lwnAllocated], false);
-        }
-
-        auto size = reinterpret_cast<uint64_t*>(lwnChunks[0]);
-        *size = sizeof(uint64_t);
+        lwnManager.freeLwnMembers();
     }
 
     void Parser::analyzeLwn(LwnMember* lwnMember) {
@@ -582,7 +565,7 @@ namespace OpenLogReplicator {
 
         // Transaction size limit
         if (ctx->transactionSizeMax > 0 &&
-            transaction->size + redoLogRecord1->size + TransactionBuffer::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
+            transaction->size + redoLogRecord1->size + TransactionChunk::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
             transactionBuffer->skipXidList.insert(transaction->xid);
             transactionBuffer->dropTransaction(redoLogRecord1->xid, redoLogRecord1->conId);
             transaction->purge(transactionBuffer);
@@ -680,7 +663,7 @@ namespace OpenLogReplicator {
         }
 
         // Transaction size limit
-        if (ctx->transactionSizeMax > 0 && transaction->size + redoLogRecord1->size + TransactionBuffer::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
+        if (ctx->transactionSizeMax > 0 && transaction->size + redoLogRecord1->size + TransactionChunk::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
             transaction->log(ctx, "siz ", redoLogRecord1);
             transactionBuffer->skipXidList.insert(transaction->xid);
             transactionBuffer->dropTransaction(redoLogRecord1->xid, redoLogRecord1->conId);
@@ -916,7 +899,7 @@ namespace OpenLogReplicator {
 
         // Transaction size limit
         if (ctx->transactionSizeMax > 0 && transaction->size + redoLogRecord1->size + redoLogRecord2->size +
-                TransactionBuffer::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
+                TransactionChunk::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
             transaction->log(ctx, "siz1", redoLogRecord1);
             transaction->log(ctx, "siz2", redoLogRecord2);
             transactionBuffer->skipXidList.insert(transaction->xid);
@@ -1180,7 +1163,7 @@ namespace OpenLogReplicator {
 
         // Transaction size limit
         if (ctx->transactionSizeMax > 0 &&
-            transaction->size + redoLogRecord1->size + redoLogRecord2->size + TransactionBuffer::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
+            transaction->size + redoLogRecord1->size + redoLogRecord2->size + TransactionChunk::ROW_HEADER_TOTAL >= ctx->transactionSizeMax) {
             transactionBuffer->skipXidList.insert(transaction->xid);
             transactionBuffer->dropTransaction(redoLogRecord1->xid, redoLogRecord1->conId);
             transaction->purge(transactionBuffer);
@@ -1211,7 +1194,7 @@ namespace OpenLogReplicator {
 
     uint64_t Parser::parse() {
         typeBlk lwnConfirmedBlock = 2;
-        uint64_t lwnRecords = 0;
+        lwnManager.reset();
 
         if (firstScn == Ctx::ZERO_SCN && nextScn == Ctx::ZERO_SCN && reader->getFirstScn() != 0) {
             firstScn = reader->getFirstScn();
@@ -1338,24 +1321,7 @@ namespace OpenLogReplicator {
 
                         recordSize4 = (static_cast<uint64_t>(ctx->read32(redoBlock + blockOffset)) + 3) & 0xFFFFFFFC;
                         if (recordSize4 > 0) {
-                            uint64_t* recordSize = reinterpret_cast<uint64_t*>(lwnChunks[lwnAllocated - 1]);
-
-                            if (((*recordSize + sizeof(struct LwnMember) + recordSize4 + 7) & 0xFFFFFFF8) > Ctx::MEMORY_CHUNK_SIZE_MB * 1024 * 1024) {
-                                if (unlikely(lwnAllocated == MAX_LWN_CHUNKS))
-                                    throw RedoLogException(50052, "all " + std::to_string(MAX_LWN_CHUNKS) + " lwn buffers allocated");
-
-                                lwnChunks[lwnAllocated++] = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_PARSER, false);
-                                if (lwnAllocated > lwnAllocatedMax)
-                                    lwnAllocatedMax = lwnAllocated;
-                                recordSize = reinterpret_cast<uint64_t*>(lwnChunks[lwnAllocated - 1]);
-                                *recordSize = sizeof(uint64_t);
-                            }
-
-                            if (unlikely(((*recordSize + sizeof(struct LwnMember) + recordSize4 + 7) & 0xFFFFFFF8) > Ctx::MEMORY_CHUNK_SIZE_MB * 1024 * 1024))
-                                throw RedoLogException(50053, "too big redo log record, size: " + std::to_string(recordSize4));
-
-                            lwnMember = reinterpret_cast<struct LwnMember*>(lwnChunks[lwnAllocated - 1] + *recordSize);
-                            *recordSize += (sizeof(struct LwnMember) + recordSize4 + 7) & 0xFFFFFFF8;
+                            lwnMember = lwnManager.allocateLwnMember(recordSize4);
                             lwnMember->scn = ctx->read32(redoBlock + blockOffset + 8) |
                                              (static_cast<uint64_t>(ctx->read16(redoBlock + blockOffset + 6)) << 32);
                             lwnMember->subScn = ctx->read16(redoBlock + blockOffset + 12);
@@ -1366,15 +1332,7 @@ namespace OpenLogReplicator {
                                 ctx->logTrace(Ctx::TRACE_LWN, "size: " + std::to_string(recordSize4) + " scn: " +
                                                               std::to_string(lwnMember->scn) + " subscn: " + std::to_string(lwnMember->subScn));
 
-                            uint64_t lwnPos = ++lwnRecords;
-                            if (unlikely(lwnPos >= MAX_RECORDS_IN_LWN))
-                                throw RedoLogException(50054, "all " + std::to_string(lwnPos) + " records in lwn were used");
-
-                            while (lwnPos > 1 && *lwnMember < *lwnMembers[lwnPos / 2]) {
-                                lwnMembers[lwnPos] = lwnMembers[lwnPos / 2];
-                                lwnPos = lwnPos / 2;
-                            }
-                            lwnMembers[lwnPos] = lwnMember;
+                            lwnManager.addLwnMember(lwnMember);
                         }
 
                         recordLeftToCopy = recordSize4;
@@ -1412,9 +1370,9 @@ namespace OpenLogReplicator {
                     if (unlikely(ctx->trace & Ctx::TRACE_LWN))
                         ctx->logTrace(Ctx::TRACE_LWN, "* analyze: " + std::to_string(lwnScn));
 
-                    while (lwnRecords > 0) {
+                    while (lwnManager.records() > 0) {
                         try {
-                            analyzeLwn(lwnMembers[1]);
+                            analyzeLwn(lwnManager.getMinLwnMember());
                         } catch (DataException& ex) {
                             if (ctx->isFlagSet(Ctx::REDO_FLAGS_IGNORE_DATA_ERRORS)) {
                                 ctx->error(ex.code, ex.msg);
@@ -1429,32 +1387,12 @@ namespace OpenLogReplicator {
                                 throw RedoLogException(ex.code, "runtime error, aborting further redo log processing: " + ex.msg);
                         }
 
-                        if (lwnRecords == 1) {
-                            lwnRecords = 0;
+                        if (lwnManager.records() == 1) {
+                            lwnManager.reset();
                             break;
                         }
 
-                        uint64_t lwnPos = 1;
-                        while (true) {
-                            if (lwnPos * 2 < lwnRecords && *lwnMembers[lwnPos * 2] < *lwnMembers[lwnRecords]) {
-                                if (lwnPos * 2U + 1U < lwnRecords && *lwnMembers[lwnPos * 2 + 1] < *lwnMembers[lwnPos * 2]) {
-                                    lwnMembers[lwnPos] = lwnMembers[lwnPos * 2 + 1];
-                                    lwnPos *= 2;
-                                    ++lwnPos;
-                                } else {
-                                    lwnMembers[lwnPos] = lwnMembers[lwnPos * 2];
-                                    lwnPos *= 2;
-                                }
-                            } else if (lwnPos * 2U + 1U < lwnRecords && *lwnMembers[lwnPos * 2 + 1] < *lwnMembers[lwnRecords]) {
-                                lwnMembers[lwnPos] = lwnMembers[lwnPos * 2 + 1];
-                                lwnPos *= 2;
-                                ++lwnPos;
-                            } else
-                                break;
-                        }
-
-                        lwnMembers[lwnPos] = lwnMembers[lwnRecords];
-                        --lwnRecords;
+                        lwnManager.dropMin();
                     }
 
                     if (lwnScn > metadata->firstDataScn) {
@@ -1575,13 +1513,13 @@ namespace OpenLogReplicator {
                                                       reader->getBlockSize() / 1024 / 1024) +
                                                       " MB, Read size: " + std::to_string(reader->getSumRead() / 1024 / 1024) + " MB, " +
                                                       "Read speed: " + std::to_string(myReadSpeed) + " MB/s, " +
-                                                      "Max LWN size: " + std::to_string(lwnAllocatedMax) + ", " +
+                                                      "Max LWN size: " + std::to_string(lwnManager.maxAllocated()) + ", " +
                                                       "Supplemental redo log size: " + std::to_string(ctx->suppLogSize) + " bytes " +
                                                       "(" + std::to_string(suppLogPercent) + " %)");
             } else {
                 ctx->logTrace(Ctx::TRACE_PERFORMANCE, "Redo log size: " + std::to_string(static_cast<uint64_t>(currentBlock - startBlock) *
                                                       reader->getBlockSize() / 1024 / 1024) + " MB, " +
-                                                      "Max LWN size: " + std::to_string(lwnAllocatedMax) + ", " +
+                                                      "Max LWN size: " + std::to_string(lwnManager.maxAllocated()) + ", " +
                                                       "Supplemental redo log size: " + std::to_string(ctx->suppLogSize) + " bytes " +
                                                       "(" + std::to_string(suppLogPercent) + " %)");
             }

@@ -76,11 +76,9 @@ namespace OpenLogReplicator {
         log(ctx, "rlb2", redoLogRecord2);
 
         while (lastTc != nullptr && lastTc->size > 0 && opCodes > 0) {
-            const uint64_t sizeLast = *(reinterpret_cast<uint64_t*>(lastTc->buffer + lastTc->size - TransactionBuffer::ROW_HEADER_TOTAL +
-                    TransactionBuffer::ROW_HEADER_SIZE));
-            // auto lastRedoLogRecord1 = reinterpret_cast<RedoLogRecord*>(lastTc->buffer + lastTc->size - sizeLast + ROW_HEADER_REDO1);
-            const auto lastRedoLogRecord2 = reinterpret_cast<const RedoLogRecord*>(lastTc->buffer + lastTc->size - sizeLast +
-                    TransactionBuffer::ROW_HEADER_REDO2);
+            TransactionChunkRecord lastRecord = lastTc->lastRecord();
+            // auto lastRedoLogRecord1 = lastRecord.redo1();
+            const auto lastRedoLogRecord2 = lastRecord.redo2();
 
             bool ok = false;
             switch (lastRedoLogRecord2->opCode) {
@@ -149,12 +147,9 @@ namespace OpenLogReplicator {
         log(metadata->ctx, "rlb ", redoLogRecord1);
 
         while (lastTc != nullptr && lastTc->size > 0 && opCodes > 0) {
-            const uint64_t sizeLast = *(reinterpret_cast<const uint64_t*>(lastTc->buffer + lastTc->size - TransactionBuffer::ROW_HEADER_TOTAL +
-                    TransactionBuffer::ROW_HEADER_SIZE));
-            const auto lastRedoLogRecord1 = reinterpret_cast<const RedoLogRecord*>(lastTc->buffer + lastTc->size - sizeLast +
-                    TransactionBuffer::ROW_HEADER_REDO1);
-            const auto lastRedoLogRecord2 = reinterpret_cast<const RedoLogRecord*>(lastTc->buffer + lastTc->size - sizeLast +
-                    TransactionBuffer::ROW_HEADER_REDO2);
+            TransactionChunkRecord lastRecord = lastTc->lastRecord();
+            const auto lastRedoLogRecord1 = lastRecord.redo1();
+            const auto lastRedoLogRecord2 = lastRecord.redo2();
 
             bool ok = false;
             switch (lastRedoLogRecord2->opCode) {
@@ -221,18 +216,18 @@ namespace OpenLogReplicator {
 
         TransactionChunk* tc = firstTc;
         while (tc != nullptr) {
-            uint64_t pos = 0;
+            TransactionChunkRecord tcr = tc->firstRecord();
             for (uint64_t i = 0; i < tc->elements; ++i) {
-                typeOp2 op = *(reinterpret_cast<typeOp2*>(tc->buffer + pos));
+                typeOp2 op = tcr.opCode();
 
-                RedoLogRecord* redoLogRecord1 = reinterpret_cast<RedoLogRecord*>(tc->buffer + pos + TransactionBuffer::ROW_HEADER_REDO1);
-                RedoLogRecord* redoLogRecord2 = reinterpret_cast<RedoLogRecord*>(tc->buffer + pos + TransactionBuffer::ROW_HEADER_REDO2);
+                RedoLogRecord* redoLogRecord1 = tcr.redo1();
+                RedoLogRecord* redoLogRecord2 = tcr.redo2();
                 log(metadata->ctx, "flu1", redoLogRecord1);
                 log(metadata->ctx, "flu2", redoLogRecord2);
 
-                redoLogRecord1->dataExt = tc->buffer + pos + TransactionBuffer::ROW_HEADER_DATA;
-                redoLogRecord2->dataExt = tc->buffer + pos + TransactionBuffer::ROW_HEADER_DATA + redoLogRecord1->size;
-                pos += redoLogRecord1->size + redoLogRecord2->size + TransactionBuffer::ROW_HEADER_TOTAL;
+                redoLogRecord1->dataExt = tcr.redoData1();
+                redoLogRecord2->dataExt = tcr.redoData2();
+                tcr.next();
 
                 if (unlikely(metadata->ctx->trace & Ctx::TRACE_TRANSACTION))
                     metadata->ctx->logTrace(Ctx::TRACE_TRANSACTION, std::to_string(redoLogRecord1->size) + ":" +

@@ -27,6 +27,47 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #include "TransactionBuffer.h"
 
 namespace OpenLogReplicator {
+    
+    TransactionChunkRecord::TransactionChunkRecord(TransactionChunk* newTc, uint8_t* newRecord, uint64_t newRecordSize) :
+        tc(newTc),
+        record(newRecord), 
+        recordSize(newRecordSize) {
+    }
+
+    uint64_t TransactionChunkRecord::size() {
+        return recordSize;
+    }
+
+    typeOp2 TransactionChunkRecord::opCode() {
+        return *reinterpret_cast<typeOp2*>(record + TransactionChunk::ROW_HEADER_OP);
+    }
+
+    RedoLogRecord* TransactionChunkRecord::redo1() {
+        return reinterpret_cast<RedoLogRecord*>(record + TransactionChunk::ROW_HEADER_REDO1);
+    }
+
+    RedoLogRecord* TransactionChunkRecord::redo2() {
+        return reinterpret_cast<RedoLogRecord*>(record + TransactionChunk::ROW_HEADER_REDO2);
+    }
+
+    uint8_t* TransactionChunkRecord::redoData1() {
+        return record + TransactionChunk::ROW_HEADER_DATA;
+    }
+
+    uint8_t* TransactionChunkRecord::redoData2() {
+        RedoLogRecord* redoLogRecord1 = redo1();
+        return record + TransactionChunk::ROW_HEADER_DATA + redoLogRecord1->size;
+    }
+
+    void TransactionChunkRecord::next() {
+        record = record + recordSize;
+        if (record >= (tc->buffer + tc->size))
+            return;
+        RedoLogRecord* redoLogRecord1 = reinterpret_cast<RedoLogRecord*>(record + TransactionChunk::ROW_HEADER_REDO1);
+        RedoLogRecord* redoLogRecord2 = reinterpret_cast<RedoLogRecord*>(record + TransactionChunk::ROW_HEADER_REDO2);
+        recordSize = *(reinterpret_cast<uint64_t*>(record + TransactionChunk::ROW_HEADER_DATA + redoLogRecord1->size + redoLogRecord2->size));
+    }
+
     TransactionBuffer::TransactionBuffer(Ctx* newCtx) :
             ctx(newCtx) {
         buffer[0] = 0;
@@ -142,7 +183,7 @@ namespace OpenLogReplicator {
     }
 
     void TransactionBuffer::addTransactionChunk(Transaction* transaction, RedoLogRecord* redoLogRecord) {
-        uint64_t chunkSize = redoLogRecord->size + ROW_HEADER_TOTAL;
+        uint64_t chunkSize = redoLogRecord->size + TransactionChunk::ROW_HEADER_TOTAL;
 
         if (unlikely(chunkSize > TransactionChunk::DATA_BUFFER_SIZE))
             throw RedoLogException(50040, "block size (" + std::to_string(chunkSize) + ") exceeding max block size (" +
@@ -153,9 +194,9 @@ namespace OpenLogReplicator {
                 throw RedoLogException(50041, "bad split offset: " + std::to_string(redoLogRecord->dataOffset) + " xid: " +
                                               transaction->xid.toString());
 
-            uint64_t lastSize = *(reinterpret_cast<uint64_t*>(transaction->lastTc->buffer + transaction->lastTc->size - ROW_HEADER_TOTAL + ROW_HEADER_SIZE));
-            RedoLogRecord* last501 = reinterpret_cast<RedoLogRecord*>(transaction->lastTc->buffer + transaction->lastTc->size - lastSize + ROW_HEADER_REDO1);
-            last501->dataExt = transaction->lastTc->buffer + transaction->lastTc->size - lastSize + ROW_HEADER_DATA;
+            TransactionChunkRecord tcr = transaction->lastTc->lastRecord();
+            RedoLogRecord* last501 = tcr.redo1();
+            last501->dataExt = tcr.redoData1();
 
             uint64_t mergeSize = last501->size + redoLogRecord->size;
             transaction->mergeBuffer = new uint8_t[mergeSize];
@@ -183,17 +224,7 @@ namespace OpenLogReplicator {
 
         // Append to the chunk at the end
         TransactionChunk* tc = transaction->lastTc;
-        *(reinterpret_cast<typeOp2*>(tc->buffer + tc->size + ROW_HEADER_OP)) = (redoLogRecord->opCode << 16);
-        memcpy(reinterpret_cast<void*>(tc->buffer + tc->size + ROW_HEADER_REDO1),
-               reinterpret_cast<const void*>(redoLogRecord), sizeof(RedoLogRecord));
-        memset(reinterpret_cast<void*>(tc->buffer + tc->size + ROW_HEADER_REDO2), 0, sizeof(RedoLogRecord));
-        memcpy(reinterpret_cast<void*>(tc->buffer + tc->size + ROW_HEADER_DATA),
-               reinterpret_cast<const void*>(redoLogRecord->data()), redoLogRecord->size);
-
-        *(reinterpret_cast<uint64_t*>(tc->buffer + tc->size + ROW_HEADER_SIZE + redoLogRecord->size)) = chunkSize;
-
-        tc->size += chunkSize;
-        ++tc->elements;
+        tc->appendTransaction(redoLogRecord);
         transaction->size += chunkSize;
 
         if (transaction->mergeBuffer != nullptr) {
@@ -203,7 +234,7 @@ namespace OpenLogReplicator {
     }
 
     void TransactionBuffer::addTransactionChunk(Transaction* transaction, RedoLogRecord* redoLogRecord1, const RedoLogRecord* redoLogRecord2) {
-        uint64_t chunkSize = redoLogRecord1->size + redoLogRecord2->size + ROW_HEADER_TOTAL;
+        uint64_t chunkSize = redoLogRecord1->size + redoLogRecord2->size + TransactionChunk::ROW_HEADER_TOTAL;
 
         if (unlikely(chunkSize > TransactionChunk::DATA_BUFFER_SIZE))
             throw RedoLogException(50040, "block size (" + std::to_string(chunkSize) + ") exceeding max block size (" +
@@ -217,9 +248,9 @@ namespace OpenLogReplicator {
                 throw RedoLogException(50043, "bad split offset: " + std::to_string(redoLogRecord1->dataOffset) + " xid: " +
                                               transaction->xid.toString() + " second position");
 
-            uint64_t lastSize = *(reinterpret_cast<uint64_t*>(transaction->lastTc->buffer + transaction->lastTc->size - ROW_HEADER_TOTAL + ROW_HEADER_SIZE));
-            RedoLogRecord* last501 = reinterpret_cast<RedoLogRecord*>(transaction->lastTc->buffer + transaction->lastTc->size - lastSize + ROW_HEADER_REDO1);
-            last501->dataExt = transaction->lastTc->buffer + transaction->lastTc->size - lastSize + ROW_HEADER_DATA;
+            TransactionChunkRecord tcr = transaction->lastTc->lastRecord();
+            RedoLogRecord* last501 = tcr.redo1();
+            last501->dataExt = tcr.redoData1();
 
             uint32_t mergeSize = last501->size + redoLogRecord1->size;
             transaction->mergeBuffer = new uint8_t[mergeSize];
@@ -231,7 +262,7 @@ namespace OpenLogReplicator {
 
             ctx->write16(redoLogRecord1->data() + fieldPos + 20, redoLogRecord1->flg);
             OpCode0501::process0501(ctx, redoLogRecord1);
-            chunkSize = redoLogRecord1->size + redoLogRecord2->size + ROW_HEADER_TOTAL;
+            chunkSize = redoLogRecord1->size + redoLogRecord2->size + TransactionChunk::ROW_HEADER_TOTAL;
 
             rollbackTransactionChunk(transaction);
             transaction->lastSplit = false;
@@ -253,21 +284,9 @@ namespace OpenLogReplicator {
 
         // Append to the chunk at the end
         TransactionChunk* tc = transaction->lastTc;
-        *(reinterpret_cast<typeOp2*>(tc->buffer + tc->size + ROW_HEADER_OP)) = (redoLogRecord1->opCode << 16) | redoLogRecord2->opCode;
-        memcpy(reinterpret_cast<void*>(tc->buffer + tc->size + ROW_HEADER_REDO1),
-               reinterpret_cast<const void*>(redoLogRecord1), sizeof(RedoLogRecord));
-        memcpy(reinterpret_cast<void*>(tc->buffer + tc->size + ROW_HEADER_REDO2),
-               reinterpret_cast<const void*>(redoLogRecord2), sizeof(RedoLogRecord));
-        memcpy(reinterpret_cast<void*>(tc->buffer + tc->size + ROW_HEADER_DATA),
-               reinterpret_cast<const void*>(redoLogRecord1->data()), redoLogRecord1->size);
-        memcpy(reinterpret_cast<void*>(tc->buffer + tc->size + ROW_HEADER_DATA + redoLogRecord1->size),
-               reinterpret_cast<const void*>(redoLogRecord2->data()), redoLogRecord2->size);
-
-        *(reinterpret_cast<uint64_t*>(tc->buffer + tc->size + ROW_HEADER_SIZE + redoLogRecord1->size + redoLogRecord2->size)) = chunkSize;
-
-        tc->size += chunkSize;
-        ++tc->elements;
+        tc->appendTransaction(redoLogRecord1, redoLogRecord2);
         transaction->size += chunkSize;
+        
 
         if (transaction->mergeBuffer != nullptr) {
             delete[] transaction->mergeBuffer;
@@ -278,11 +297,12 @@ namespace OpenLogReplicator {
     void TransactionBuffer::rollbackTransactionChunk(Transaction* transaction) {
         if (unlikely(transaction->lastTc == nullptr))
             throw RedoLogException(50044, "trying to remove from empty buffer size: <null> elements: <null>");
-        if (unlikely(transaction->lastTc->size < ROW_HEADER_TOTAL || transaction->lastTc->elements == 0))
+        if (unlikely(transaction->lastTc->size < TransactionChunk::ROW_HEADER_TOTAL || transaction->lastTc->elements == 0))
             throw RedoLogException(50044, "trying to remove from empty buffer size: " + std::to_string(transaction->lastTc->size) +
                                           " elements: " + std::to_string(transaction->lastTc->elements));
 
-        uint64_t chunkSize = *(reinterpret_cast<uint64_t*>(transaction->lastTc->buffer + transaction->lastTc->size - ROW_HEADER_TOTAL + ROW_HEADER_SIZE));
+        TransactionChunkRecord tcr = transaction->lastTc->lastRecord();
+        uint64_t chunkSize = tcr.size();
         transaction->lastTc->size -= chunkSize;
         --transaction->lastTc->elements;
         transaction->size -= chunkSize;
