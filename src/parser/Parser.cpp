@@ -57,6 +57,116 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #include "TransactionBuffer.h"
 
 namespace OpenLogReplicator {
+
+    LwnMembersManager::LwnMembersManager(Ctx* newCtx):
+            ctx(newCtx),
+            lwnAllocated(0),
+            lwnAllocatedMax(0),
+            lwnRecords(0) {
+        lwnChunks[0] = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_PARSER, false);
+        auto size = reinterpret_cast<uint64_t*>(lwnChunks[0]);
+        *size = sizeof(uint64_t);
+        lwnAllocatedMax = lwnAllocated = 1;
+        lwnMembers[0] = 0;
+    }
+
+    void LwnMembersManager::freeLwnMembers() {
+        while (lwnAllocated > 1) {
+            ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_PARSER, lwnChunks[--lwnAllocated], false);
+        }
+
+        auto size = reinterpret_cast<uint64_t*>(lwnChunks[0]);
+        *size = sizeof(uint64_t);
+    }
+
+    LwnMembersManager::~LwnMembersManager() {
+        while (lwnAllocated > 0) {
+            ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_PARSER, lwnChunks[--lwnAllocated], false);
+        }
+    }
+
+    LwnMember* LwnMembersManager::allocateLwnMember(uint64_t recordSize4) {
+        uint64_t* recordSize = reinterpret_cast<uint64_t*>(lwnChunks[lwnAllocated - 1]);
+
+        if (((*recordSize + sizeof(struct LwnMember) + recordSize4 + 7) & 0xFFFFFFF8) > Ctx::MEMORY_CHUNK_SIZE) {
+            if (unlikely(lwnAllocated == MAX_LWN_CHUNKS))
+                throw RedoLogException(50052, "all " + std::to_string(MAX_LWN_CHUNKS) + " lwn buffers allocated");
+
+            allocateChunk();
+            recordSize = reinterpret_cast<uint64_t*>(lwnChunks[lwnAllocated - 1]);
+            *recordSize = sizeof(uint64_t);
+        }
+
+        if (unlikely(((*recordSize + sizeof(struct LwnMember) + recordSize4 + 7) & 0xFFFFFFF8) > Ctx::MEMORY_CHUNK_SIZE))
+            throw RedoLogException(50053, "too big redo log record, size: " + std::to_string(recordSize4));
+
+        LwnMember* result = reinterpret_cast<struct LwnMember*>(lwnChunks[lwnAllocated - 1] + *recordSize);
+        *recordSize += (sizeof(struct LwnMember) + recordSize4 + 7) & 0xFFFFFFF8;
+
+        return result;
+    }
+
+    void LwnMembersManager::addLwnMember(LwnMember* lwnMember) {
+        uint64_t lwnPos = ++lwnRecords;
+        if (unlikely(lwnPos >= MAX_RECORDS_IN_LWN))
+            throw RedoLogException(50054, "all " + std::to_string(lwnPos) + " records in lwn were used");
+
+        // make heap
+        while (lwnPos > 1 && *lwnMember < *lwnMembers[lwnPos / 2]) { 
+            lwnMembers[lwnPos] = lwnMembers[lwnPos / 2];
+            lwnPos = lwnPos / 2;
+        }
+        lwnMembers[lwnPos] = lwnMember;
+    }
+
+    void LwnMembersManager::dropMin() {
+        uint64_t lwnPos = 1;
+        while (true) {
+            uint64_t left = lwnPos * 2, right = lwnPos * 2 + 1;
+            if (left < lwnRecords && *lwnMembers[left] < *lwnMembers[lwnRecords]) {
+                if (right < lwnRecords && *lwnMembers[right] < *lwnMembers[left]) {
+                    lwnMembers[lwnPos] = lwnMembers[right];
+                    lwnPos *= 2;
+                    ++lwnPos;
+                } else {
+                    lwnMembers[lwnPos] = lwnMembers[left];
+                    lwnPos *= 2;
+                }
+            } else if (right < lwnRecords && *lwnMembers[right] < *lwnMembers[lwnRecords]) {
+                lwnMembers[lwnPos] = lwnMembers[right];
+                lwnPos *= 2;
+                ++lwnPos;
+            } else
+                break;
+        }
+
+        lwnMembers[lwnPos] = lwnMembers[lwnRecords];
+        --lwnRecords;
+    }
+
+    void LwnMembersManager::reset() {
+        lwnRecords = 0;
+    }
+
+    uint64_t LwnMembersManager::maxAllocated() const {
+        return lwnAllocatedMax;
+    }
+
+    uint64_t LwnMembersManager::records() const {
+        return lwnRecords;
+    }
+
+    LwnMember* LwnMembersManager::getMinLwnMember() {
+        return lwnMembers[1];
+    }
+
+    void LwnMembersManager::allocateChunk() {
+        lwnChunks[lwnAllocated] = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_PARSER, false);
+        lwnAllocated++;
+        lwnAllocatedMax = std::max(lwnAllocatedMax, lwnAllocated);
+    }
+
+
     Parser::Parser(Ctx* newCtx, Builder* newBuilder, Metadata* newMetadata, TransactionBuffer* newTransactionBuffer, int64_t newGroup,
                    const std::string& newPath) :
             ctx(newCtx),
@@ -1252,7 +1362,6 @@ namespace OpenLogReplicator {
 
         time_ut cStart = ctx->clock->getTimeUt();
         reader->setStatusRead(); // allow reader to read blocks
-        LwnMember* lwnMember;
         uint64_t blockOffset;
         uint64_t confirmedBufferStart = reader->getBufferStart();
         uint64_t recordSize4;
@@ -1278,41 +1387,43 @@ namespace OpenLogReplicator {
                 if (currentBlock == lwnEndBlock) {
                     uint8_t vld = redoBlock[blockOffset + 4];
 
-                    if (likely((vld & 0x04) != 0)) {
-                        uint16_t lwnNum = ctx->read16(redoBlock + blockOffset + 24);
-                        uint32_t lwnSize = ctx->read32(redoBlock + blockOffset + 28);
-                        lwnEndBlock = currentBlock + lwnSize;
-                        lwnScn = ctx->readScn(redoBlock + blockOffset + 40);
-                        lwnTimestamp = ctx->read32(redoBlock + blockOffset + 64);
-
-                        if (ctx->metrics) {
-                            int64_t diff = ctx->clock->getTimeT() - lwnTimestamp.toEpoch(ctx->hostTimezone);
-                            ctx->metrics->emitCheckpointLag(diff);
-                        }
-
-                        if (lwnNumCnt == 0) {
-                            lwnCheckpointBlock = currentBlock;
-                            lwnNumMax = ctx->read16(redoBlock + blockOffset + 26);
-                            // Verify LWN header start
-                            if (unlikely(lwnScn < reader->getFirstScn() || (lwnScn > reader->getNextScn() && reader->getNextScn() != Ctx::ZERO_SCN)))
-                                throw RedoLogException(50049, "invalid lwn scn: " + std::to_string(lwnScn));
-                        } else {
-                            uint16_t lwnNumCur = ctx->read16(redoBlock + blockOffset + 26);
-                            if (unlikely(lwnNumCur != lwnNumMax))
-                                throw RedoLogException(50050, "invalid lwn max: " + std::to_string(lwnNum) + "/" +
-                                                              std::to_string(lwnNumCur) + "/" + std::to_string(lwnNumMax));
-                        }
-                        ++lwnNumCnt;
-
-                        if (unlikely(ctx->trace & Ctx::TRACE_LWN)) {
-                            typeBlk lwnStartBlock = currentBlock;
-                            ctx->logTrace(Ctx::TRACE_LWN, "at: " + std::to_string(lwnStartBlock) + " size: " + std::to_string(lwnSize) +
-                                                          " chk: " + std::to_string(lwnNum) + " max: " + std::to_string(lwnNumMax));
-                        }
-                    } else
+                    if (unlikely((vld & 0x04) == 0)) {
                         throw RedoLogException(50051, "did not find lwn at offset: " + std::to_string(confirmedBufferStart));
+                    }
+
+                    uint16_t lwnNum = ctx->read16(redoBlock + blockOffset + 24);
+                    uint32_t lwnSize = ctx->read32(redoBlock + blockOffset + 28);
+                    lwnEndBlock = currentBlock + lwnSize;
+                    lwnScn = ctx->readScn(redoBlock + blockOffset + 40);
+                    lwnTimestamp = ctx->read32(redoBlock + blockOffset + 64);
+
+                    if (ctx->metrics) {
+                        int64_t diff = ctx->clock->getTimeT() - lwnTimestamp.toEpoch(ctx->hostTimezone);
+                        ctx->metrics->emitCheckpointLag(diff);
+                    }
+
+                    if (lwnNumCnt == 0) {
+                        lwnCheckpointBlock = currentBlock;
+                        lwnNumMax = ctx->read16(redoBlock + blockOffset + 26);
+                        // Verify LWN header start
+                        if (unlikely(lwnScn < reader->getFirstScn() || (lwnScn > reader->getNextScn() && reader->getNextScn() != Ctx::ZERO_SCN)))
+                            throw RedoLogException(50049, "invalid lwn scn: " + std::to_string(lwnScn));
+                    } else {
+                        uint16_t lwnNumCur = ctx->read16(redoBlock + blockOffset + 26);
+                        if (unlikely(lwnNumCur != lwnNumMax))
+                            throw RedoLogException(50050, "invalid lwn max: " + std::to_string(lwnNum) + "/" +
+                                                            std::to_string(lwnNumCur) + "/" + std::to_string(lwnNumMax));
+                    }
+                    ++lwnNumCnt;
+
+                    if (unlikely(ctx->trace & Ctx::TRACE_LWN)) {
+                        typeBlk lwnStartBlock = currentBlock;
+                        ctx->logTrace(Ctx::TRACE_LWN, "at: " + std::to_string(lwnStartBlock) + " size: " + std::to_string(lwnSize) +
+                                                        " chk: " + std::to_string(lwnNum) + " max: " + std::to_string(lwnNumMax));
+                    }
                 }
 
+                LwnMember* lwnMember;
                 while (blockOffset < reader->getBlockSize()) {
                     // Next record
                     if (recordLeftToCopy == 0) {
@@ -1478,7 +1589,7 @@ namespace OpenLogReplicator {
             }
         }
 
-        if (ctx->metrics && reader->getNextScn() != Ctx::ZERO_SCN) {
+        if (ctx->metrics != nullptr && reader->getNextScn() != Ctx::ZERO_SCN) {
             int64_t diff = ctx->clock->getTimeT() - reader->getNextTime().toEpoch(ctx->hostTimezone);
 
             if (group == 0) {
@@ -1491,7 +1602,7 @@ namespace OpenLogReplicator {
         }
 
         // Print performance information
-        if ((ctx->trace & Ctx::TRACE_PERFORMANCE) != 0) {
+        if (unlikely(ctx->trace & Ctx::TRACE_PERFORMANCE)) {
             time_ut cEnd = ctx->clock->getTimeUt();
             double suppLogPercent = 0.0;
             if (currentBlock != startBlock)

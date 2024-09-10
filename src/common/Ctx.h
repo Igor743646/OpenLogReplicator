@@ -586,7 +586,7 @@ namespace OpenLogReplicator {
         void warning(int code, const std::string& message) const;
         void info(int code, const std::string& message) const;
         void debug(int code, const std::string& message) const;
-        void logTrace(int mask, const std::string& message) const;
+        void logTrace(uint64_t mask, const std::string& message) const;
     };
 }
 

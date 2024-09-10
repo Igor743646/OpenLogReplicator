@@ -681,7 +681,6 @@ namespace OpenLogReplicator {
 
     bool Replicator::processArchivedRedoLogs() {
         uint64_t ret;
-        Parser* parser;
         bool logsProcessed = false;
 
         while (!ctx->softShutdown) {
@@ -707,7 +706,8 @@ namespace OpenLogReplicator {
                 ctx->logTrace(Ctx::TRACE_REDO, "searching archived redo log for seq: " + std::to_string(metadata->sequence));
             }
             while (!archiveRedoQueue.empty() && !ctx->softShutdown) {
-                parser = archiveRedoQueue.top();
+                Parser* parser = archiveRedoQueue.top();
+
                 if (unlikely(ctx->trace & Ctx::TRACE_REDO))
                     ctx->logTrace(Ctx::TRACE_REDO, parser->path + " is seq: " + std::to_string(parser->sequence) + ", scn: " +
                                                    std::to_string(parser->firstScn));
