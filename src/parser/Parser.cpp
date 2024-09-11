@@ -1364,7 +1364,6 @@ namespace OpenLogReplicator {
         reader->setStatusRead(); // allow reader to read blocks
         uint64_t blockOffset;
         uint64_t confirmedBufferStart = reader->getBufferStart();
-        uint64_t recordSize4;
         uint64_t recordPos = 0;
         uint64_t recordLeftToCopy = 0;
         typeBlk startBlock = lwnConfirmedBlock;
@@ -1430,7 +1429,7 @@ namespace OpenLogReplicator {
                         if (blockOffset + 20 >= reader->getBlockSize())
                             break;
 
-                        recordSize4 = (static_cast<uint64_t>(ctx->read32(redoBlock + blockOffset)) + 3) & 0xFFFFFFFC;
+                        uint64_t recordSize4 = (static_cast<uint64_t>(ctx->read32(redoBlock + blockOffset)) + 3) & 0xFFFFFFFC;
                         if (recordSize4 > 0) {
                             lwnMember = lwnManager.allocateLwnMember(recordSize4);
                             lwnMember->scn = ctx->read32(redoBlock + blockOffset + 8) |
@@ -1454,11 +1453,7 @@ namespace OpenLogReplicator {
                     if (recordLeftToCopy == 0)
                         break;
 
-                    uint64_t toCopy;
-                    if (blockOffset + recordLeftToCopy > reader->getBlockSize())
-                        toCopy = reader->getBlockSize() - blockOffset;
-                    else
-                        toCopy = recordLeftToCopy;
+                    uint64_t toCopy = std::min(reader->getBlockSize() - blockOffset, recordLeftToCopy);
 
                     memcpy(reinterpret_cast<void*>(reinterpret_cast<uint8_t*>(lwnMember) + sizeof(struct LwnMember) + recordPos),
                            reinterpret_cast<const void*>(redoBlock + blockOffset), toCopy);

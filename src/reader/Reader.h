@@ -28,6 +28,12 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #define READER_H_
 
 namespace OpenLogReplicator {
+
+    struct ReaderStat {
+        uint64_t sumRead = 0;
+        uint64_t sumTime = 0;
+    };
+
     class Reader : public Thread {
     protected:
         static constexpr uint64_t FLAGS_END = 0x0008;
@@ -46,7 +52,7 @@ namespace OpenLogReplicator {
         static constexpr uint64_t BAD_CDC_MAX_CNT = 20;
 
         std::string database;
-        int fileCopyDes;
+        int fileCopyDescriptor;
         uint64_t fileSize;
         typeSeq fileCopySequence;
         bool hintDisplayed;
@@ -68,8 +74,7 @@ namespace OpenLogReplicator {
         typeScn nextScnHeader;
         typeTime nextTime;
         uint64_t blockSize;
-        uint64_t sumRead;
-        uint64_t sumTime;
+        ReaderStat statistic;
         uint64_t bufferScan;
         uint64_t lastRead;
         time_ut lastReadTime;
@@ -87,11 +92,17 @@ namespace OpenLogReplicator {
 
         virtual void redoClose() = 0;
         virtual uint64_t redoOpen() = 0;
-        virtual int64_t redoRead(uint8_t* buf, uint64_t offset, uint64_t size) = 0;
+        virtual int64_t redoRead(uint8_t* buf, uint64_t size, uint64_t offset = 0) = 0;
         virtual uint64_t readSize(uint64_t lastRead);
         virtual uint64_t reloadHeaderRead();
+        /// @brief Check the correctness of readed block 
+        /// @param buffer pointer to memory with block 
+        /// @param blockNumber number of checking block
+        /// @param showHint show result of check sum
+        /// @return Status: REDO_OK, REDO_EMPTY, REDO_ERROR_BAD_DATA, REDO_ERROR_SEQUENCE, REDO_OVERWRITTEN, REDO_ERROR_BLOCK, REDO_ERROR_CRC
         uint64_t checkBlockHeader(uint8_t* buffer, typeBlk blockNumber, bool showHint);
         uint64_t reloadHeader();
+        void closeCopyDescriptor();
         bool read1();
         bool read2();
         void mainLoop();

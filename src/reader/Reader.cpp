@@ -41,7 +41,7 @@ namespace OpenLogReplicator {
     Reader::Reader(Ctx* newCtx, const std::string& newAlias, const std::string& newDatabase, int64_t newGroup, bool newConfiguredBlockSum) :
             Thread(newCtx, newAlias),
             database(newDatabase),
-            fileCopyDes(-1),
+            fileCopyDescriptor(-1),
             fileSize(0),
             fileCopySequence(0),
             hintDisplayed(false),
@@ -62,8 +62,6 @@ namespace OpenLogReplicator {
             nextScnHeader(Ctx::ZERO_SCN),
             nextTime(0),
             blockSize(0),
-            sumRead(0),
-            sumTime(0),
             bufferScan(0),
             lastRead(0),
             lastReadTime(0),
@@ -116,10 +114,7 @@ namespace OpenLogReplicator {
             headerBuffer = nullptr;
         }
 
-        if (fileCopyDes != -1) {
-            close(fileCopyDes);
-            fileCopyDes = -1;
-        }
+        closeCopyDescriptor();
     }
 
     uint64_t Reader::checkBlockHeader(uint8_t* buffer, typeBlk blockNumber, bool showHint) {
@@ -198,7 +193,7 @@ namespace OpenLogReplicator {
         if (ctx->softShutdown)
             return REDO_ERROR;
 
-        int64_t actualRead = redoRead(headerBuffer, 0, blockSize > 0 ? blockSize * 2 : PAGE_SIZE_MAX * 2);
+        int64_t actualRead = redoRead(headerBuffer, blockSize > 0 ? blockSize * 2 : PAGE_SIZE_MAX * 2);
         if (actualRead < 512) {
             ctx->error(40003, "read file: " + fileName + " - " + strerror(errno));
             return REDO_ERROR_READ;
@@ -245,22 +240,19 @@ namespace OpenLogReplicator {
 
             typeSeq sequenceHeader = ctx->read32(headerBuffer + blockSize + 8);
             if (fileCopySequence != sequenceHeader) {
-                if (fileCopyDes != -1) {
-                    close(fileCopyDes);
-                    fileCopyDes = -1;
-                }
+                closeCopyDescriptor();
             }
 
-            if (fileCopyDes == -1) {
+            if (fileCopyDescriptor == -1) {
                 fileNameWrite = ctx->redoCopyPath + "/" + database + "_" + std::to_string(sequenceHeader) + ".arc";
-                fileCopyDes = open(fileNameWrite.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
-                if (unlikely(fileCopyDes == -1))
+                fileCopyDescriptor = open(fileNameWrite.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+                if (unlikely(fileCopyDescriptor == -1))
                     throw RuntimeException(10006, "file: " + fileNameWrite + " - open for write returned: " + strerror(errno));
                 ctx->info(0, "writing redo log copy to: " + fileNameWrite);
                 fileCopySequence = sequenceHeader;
             }
 
-            int64_t bytesWritten = pwrite(fileCopyDes, headerBuffer, actualRead, 0);
+            int64_t bytesWritten = pwrite(fileCopyDescriptor, headerBuffer, actualRead, 0);
             if (bytesWritten != actualRead) {
                 ctx->error(10007, "file: " + fileNameWrite + " - " + std::to_string(bytesWritten) + " bytes written instead of " +
                                   std::to_string(actualRead) + ", code returned: " + strerror(errno));
@@ -379,11 +371,17 @@ namespace OpenLogReplicator {
         return retReload;
     }
 
+    void Reader::closeCopyDescriptor()
+    {
+        if (fileCopyDescriptor != -1) {
+            close(fileCopyDescriptor);
+            fileCopyDescriptor = -1;
+        }
+    }
+
     bool Reader::read1() {
         uint64_t toRead = readSize(lastRead);
-
-        if (bufferScan + toRead > fileSize)
-            toRead = fileSize - bufferScan;
+        toRead = std::min(toRead, fileSize - bufferScan);
 
         uint64_t redoBufferPos = bufferScan % Ctx::MEMORY_CHUNK_SIZE;
         uint64_t redoBufferNum = (bufferScan / Ctx::MEMORY_CHUNK_SIZE) % ctx->readBufferMax;
@@ -401,7 +399,7 @@ namespace OpenLogReplicator {
         if (unlikely(ctx->trace & Ctx::TRACE_DISK))
             ctx->logTrace(Ctx::TRACE_DISK, "reading#1 " + fileName + " at (" + std::to_string(bufferStart) + "/" +
                                            std::to_string(bufferEnd) + "/" + std::to_string(bufferScan) + ") bytes: " + std::to_string(toRead));
-        int64_t actualRead = redoRead(redoBufferList[redoBufferNum] + redoBufferPos, bufferScan, toRead);
+        int64_t actualRead = redoRead(redoBufferList[redoBufferNum] + redoBufferPos, toRead, bufferScan);
 
         if (unlikely(ctx->trace & Ctx::TRACE_DISK))
             ctx->logTrace(Ctx::TRACE_DISK, "reading#1 " + fileName + " at (" + std::to_string(bufferStart) + "/" +
@@ -414,8 +412,8 @@ namespace OpenLogReplicator {
         if (ctx->metrics)
             ctx->metrics->emitBytesRead(actualRead);
 
-        if (actualRead > 0 && fileCopyDes != -1 && (ctx->redoVerifyDelayUs == 0 || group == 0)) {
-            int64_t bytesWritten = pwrite(fileCopyDes, redoBufferList[redoBufferNum] + redoBufferPos, actualRead,
+        if (actualRead > 0 && fileCopyDescriptor != -1 && (ctx->redoVerifyDelayUs == 0 || group == 0)) {
+            int64_t bytesWritten = pwrite(fileCopyDescriptor, redoBufferList[redoBufferNum] + redoBufferPos, actualRead,
                                           static_cast<int64_t>(bufferEnd));
             if (bytesWritten != actualRead) {
                 ctx->error(10007, "file: " + fileNameWrite + " - " + std::to_string(bytesWritten) + " bytes written instead of " +
@@ -550,7 +548,7 @@ namespace OpenLogReplicator {
             if (unlikely(ctx->trace & Ctx::TRACE_DISK))
                 ctx->logTrace(Ctx::TRACE_DISK, "reading#2 " + fileName + " at (" + std::to_string(bufferStart) + "/" +
                                                std::to_string(bufferEnd) + "/" + std::to_string(bufferScan) + ") bytes: " + std::to_string(toRead));
-            int64_t actualRead = redoRead(redoBufferList[redoBufferNum] + redoBufferPos, bufferEnd, toRead);
+            int64_t actualRead = redoRead(redoBufferList[redoBufferNum] + redoBufferPos, toRead, bufferEnd);
 
             if (unlikely(ctx->trace & Ctx::TRACE_DISK))
                 ctx->logTrace(Ctx::TRACE_DISK, "reading#2 " + fileName + " at (" + std::to_string(bufferStart) + "/" +
@@ -564,8 +562,8 @@ namespace OpenLogReplicator {
             if (ctx->metrics)
                 ctx->metrics->emitBytesRead(actualRead);
 
-            if (actualRead > 0 && fileCopyDes != -1) {
-                int64_t bytesWritten = pwrite(fileCopyDes, redoBufferList[redoBufferNum] + redoBufferPos, actualRead,
+            if (actualRead > 0 && fileCopyDescriptor != -1) {
+                int64_t bytesWritten = pwrite(fileCopyDescriptor, redoBufferList[redoBufferNum] + redoBufferPos, actualRead,
                                               static_cast<int64_t>(bufferEnd));
                 if (bytesWritten != actualRead) {
                     ctx->error(10007, "file: " + fileNameWrite + " - " + std::to_string(bytesWritten) +
@@ -647,14 +645,11 @@ namespace OpenLogReplicator {
                 continue;
 
             } else if (status == STATUS_UPDATE) {
-                if (fileCopyDes != -1) {
-                    close(fileCopyDes);
-                    fileCopyDes = -1;
-                }
+                closeCopyDescriptor();
 
-                sumRead = 0;
-                sumTime = 0;
-                uint64_t currentRet = reloadHeader();
+                statistic.sumRead = 0;
+                statistic.sumTime = 0;
+                uint64_t currentRet = reloadHeader(); // first read point
                 if (currentRet == REDO_OK) {
                     bufferStart = blockSize * 2;
                     bufferEnd = blockSize * 2;
@@ -785,10 +780,7 @@ namespace OpenLogReplicator {
         }
 
         redoClose();
-        if (fileCopyDes != -1) {
-            close(fileCopyDes);
-            fileCopyDes = -1;
-        }
+        closeCopyDescriptor();
 
         if (unlikely(ctx->trace & Ctx::TRACE_THREADS)) {
             std::ostringstream ss;
@@ -1037,11 +1029,11 @@ namespace OpenLogReplicator {
     }
 
     uint64_t Reader::getSumRead() const {
-        return sumRead;
+        return statistic.sumRead;
     }
 
     uint64_t Reader::getSumTime() const {
-        return sumTime;
+        return statistic.sumTime;
     }
 
     void Reader::setRet(uint64_t newRet) {

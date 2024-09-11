@@ -25,11 +25,11 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 namespace OpenLogReplicator {
     class ReaderFilesystem final : public Reader {
     protected:
-        int fileDes;
+        int fileDescriptor;
         int flags;
         void redoClose() override;
         uint64_t redoOpen() override;
-        int64_t redoRead(uint8_t* buf, uint64_t offset, uint64_t size) override;
+        int64_t redoRead(uint8_t* buf, uint64_t size, uint64_t offset = 0) override;
 
     public:
         ReaderFilesystem(Ctx* newCtx, const std::string& newAlias, const std::string& newDatabase, int64_t newGroup, bool newConfiguredBlockSum);

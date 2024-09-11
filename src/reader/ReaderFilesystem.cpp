@@ -33,7 +33,7 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 namespace OpenLogReplicator {
     ReaderFilesystem::ReaderFilesystem(Ctx* newCtx, const std::string& newAlias, const std::string& newDatabase, int64_t newGroup, bool newConfiguredBlockSum) :
             Reader(newCtx, newAlias, newDatabase, newGroup, newConfiguredBlockSum),
-            fileDes(-1),
+            fileDescriptor(-1),
             flags(0) {
     }
 
@@ -42,9 +42,9 @@ namespace OpenLogReplicator {
     }
 
     void ReaderFilesystem::redoClose() {
-        if (fileDes != -1) {
-            close(fileDes);
-            fileDes = -1;
+        if (fileDescriptor != -1) {
+            close(fileDescriptor);
+            fileDescriptor = -1;
         }
     }
 
@@ -69,15 +69,15 @@ namespace OpenLogReplicator {
             flags |= O_DIRECT;
 #endif
 
-        fileDes = open(fileName.c_str(), flags);
-        if (fileDes == -1) {
+        fileDescriptor = open(fileName.c_str(), flags);
+        if (fileDescriptor == -1) {
             ctx->error(10001, "file: " + fileName + " - open for read returned: " + strerror(errno));
             return REDO_ERROR;
         }
 
 #if __APPLE__
         if (!ctx->isFlagSet(Ctx::REDO_FLAGS_DIRECT_DISABLE)) {
-            if (fcntl(fileDes, F_GLOBAL_NOCACHE, 1) < 0)
+            if (fcntl(fileDescriptor, F_GLOBAL_NOCACHE, 1) < 0)
                 ctx->error(10008, "file: " + fileName + " - set no cache for file returned: " + strerror(errno));
         }
 #endif
@@ -85,7 +85,7 @@ namespace OpenLogReplicator {
         return REDO_OK;
     }
 
-    int64_t ReaderFilesystem::redoRead(uint8_t* buf, uint64_t offset, uint64_t size) {
+    int64_t ReaderFilesystem::redoRead(uint8_t* buf, uint64_t size, uint64_t offset) {
         uint64_t startTime = 0;
         if (unlikely(ctx->trace & Ctx::TRACE_PERFORMANCE))
             startTime = ctx->clock->getTimeUt();
@@ -95,7 +95,7 @@ namespace OpenLogReplicator {
         while (tries > 0) {
             if (ctx->hardShutdown)
                 break;
-            bytes = pread(fileDes, buf, size, static_cast<int64_t>(offset));
+            bytes = pread(fileDescriptor, buf, size, static_cast<int64_t>(offset));
             if (unlikely(ctx->trace & Ctx::TRACE_FILE))
                 ctx->logTrace(Ctx::TRACE_FILE, "read " + fileName + ", " + std::to_string(offset) + ", " + std::to_string(size) +
                                                " returns " + std::to_string(bytes));
@@ -125,8 +125,8 @@ namespace OpenLogReplicator {
 
         if (unlikely(ctx->trace & Ctx::TRACE_PERFORMANCE)) {
             if (bytes > 0)
-                sumRead += bytes;
-            sumTime += ctx->clock->getTimeUt() - startTime;
+                statistic.sumRead += bytes;
+            statistic.sumTime += ctx->clock->getTimeUt() - startTime;
         }
 
         return bytes;
