@@ -24,14 +24,8 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #include "BuilderJson.h"
 
 namespace OpenLogReplicator {
-    BuilderJson::BuilderJson(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, uint64_t newDbFormat, uint64_t newAttributesFormat,
-                             uint64_t newIntervalDtsFormat, uint64_t newIntervalYtmFormat, uint64_t newMessageFormat, uint64_t newRidFormat,
-                             uint64_t newXidFormat, uint64_t newTimestampFormat, uint64_t newTimestampTzFormat, uint64_t newTimestampAll,
-                             uint64_t newCharFormat, uint64_t newScnFormat, uint64_t newScnAll, uint64_t newUnknownFormat, uint64_t newSchemaFormat,
-                             uint64_t newColumnFormat, uint64_t newUnknownType, uint64_t newFlushBuffer) :
-            Builder(newCtx, newLocales, newMetadata, newDbFormat, newAttributesFormat, newIntervalDtsFormat, newIntervalYtmFormat, newMessageFormat,
-                    newRidFormat, newXidFormat, newTimestampFormat, newTimestampTzFormat, newTimestampAll, newCharFormat, newScnFormat, newScnAll,
-                    newUnknownFormat, newSchemaFormat, newColumnFormat, newUnknownType, newFlushBuffer),
+    BuilderJson::BuilderJson(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, BuilderSettings newFormats, uint64_t newUnknownType, uint64_t newFlushBuffer) :
+            Builder(newCtx, newLocales, newMetadata, newFormats, newUnknownType, newFlushBuffer),
             hasPreviousValue(false),
             hasPreviousRedo(false),
             hasPreviousColumn(false) {
@@ -132,7 +126,7 @@ namespace OpenLogReplicator {
         append(R"(":)", sizeof(R"(":)") - 1);
         char buffer[22];
 
-        switch (timestampFormat) {
+        switch (formats.timestampFormat) {
             case TIMESTAMP_FORMAT_UNIX_NANO:
                 // 1712345678123456789
                 if (timestamp < 1000000000 && timestamp > -1000000000)
@@ -313,7 +307,7 @@ namespace OpenLogReplicator {
         append(R"(":)", sizeof(R"(":)") - 1);
         char buffer[22];
 
-        switch (timestampTzFormat) {
+        switch (formats.timestampTzFormat) {
             case TIMESTAMP_TZ_FORMAT_UNIX_NANO_STRING:
                 // "1700000000.123456789,Europe/Warsaw"
                 append('"');
@@ -480,23 +474,23 @@ namespace OpenLogReplicator {
         newTran = false;
         hasPreviousRedo = false;
 
-        if ((messageFormat & MESSAGE_FORMAT_SKIP_BEGIN) != 0)
+        if ((formats.messageFormat & MESSAGE_FORMAT_SKIP_BEGIN) != 0)
             return;
 
         builderBegin(scn, sequence, 0, 0);
         append('{');
         hasPreviousValue = false;
-        appendHeader(scn, timestamp, true, (dbFormat & DB_FORMAT_ADD_DML) != 0, true);
+        appendHeader(scn, timestamp, true, (formats.dbFormat & DB_FORMAT_ADD_DML) != 0, true);
 
         if (hasPreviousValue)
             append(',');
         else
             hasPreviousValue = true;
 
-        if ((attributesFormat & ATTRIBUTES_FORMAT_BEGIN) != 0)
+        if ((formats.attributesFormat & ATTRIBUTES_FORMAT_BEGIN) != 0)
             appendAttributes();
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) != 0) {
             append(R"("payload":[)", sizeof(R"("payload":[)") - 1);
         } else {
             append(R"("payload":[{"op":"begin"}]})", sizeof(R"("payload":[{"op":"begin"}]})") - 1);
@@ -511,22 +505,22 @@ namespace OpenLogReplicator {
             return;
         }
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) != 0) {
             append("]}", sizeof("]}") - 1);
             builderCommit(true);
-        } else if ((messageFormat & MESSAGE_FORMAT_SKIP_COMMIT) == 0) {
+        } else if ((formats.messageFormat & MESSAGE_FORMAT_SKIP_COMMIT) == 0) {
             builderBegin(scn, sequence, 0, 0);
             append('{');
 
             hasPreviousValue = false;
-            appendHeader(scn, timestamp, false, (dbFormat & DB_FORMAT_ADD_DML) != 0, true);
+            appendHeader(scn, timestamp, false, (formats.dbFormat & DB_FORMAT_ADD_DML) != 0, true);
 
             if (hasPreviousValue)
                 append(',');
             else
                 hasPreviousValue = true;
 
-            if ((attributesFormat & ATTRIBUTES_FORMAT_COMMIT) != 0)
+            if ((formats.attributesFormat & ATTRIBUTES_FORMAT_COMMIT) != 0)
                 appendAttributes();
 
             append(R"("payload":[{"op":"commit"}]})", sizeof(R"("payload":[{"op":"commit"}]})") - 1);
@@ -535,12 +529,36 @@ namespace OpenLogReplicator {
         num = 0;
     }
 
+    void BuilderJson::processRollback(typeScn scn, typeSeq sequence, time_t timestamp) {
+        if (newTran) {
+            processBeginMessage(scn, sequence, timestamp);
+        }
+        builderBegin(scn, sequence, 0, 0);
+        append('{');
+
+        hasPreviousValue = false;
+        appendHeader(scn, timestamp, false, (formats.dbFormat & DB_FORMAT_ADD_DML) != 0, true);
+
+        if (hasPreviousValue)
+            append(',');
+        else
+            hasPreviousValue = true;
+
+        if ((formats.attributesFormat & ATTRIBUTES_FORMAT_COMMIT) != 0)
+            appendAttributes();
+
+        append(R"("payload":[{"op":"rollback"}]})", sizeof(R"("payload":[{"op":"rollback"}]})") - 1);
+        builderCommit(true);
+
+        ++num;
+    }
+
     void BuilderJson::processInsert(typeScn scn, typeSeq sequence, time_t timestamp, LobCtx* lobCtx, const XmlCtx* xmlCtx, const OracleTable* table,
                                     typeObj obj, typeDataObj dataObj, typeDba bdba, typeSlot slot, typeXid xid  __attribute__((unused)), uint64_t offset) {
         if (newTran)
             processBeginMessage(scn, sequence, timestamp);
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) != 0) {
             if (hasPreviousRedo)
                 append(',');
             else
@@ -549,21 +567,21 @@ namespace OpenLogReplicator {
             builderBegin(scn, sequence, obj, 0);
             append('{');
             hasPreviousValue = false;
-            appendHeader(scn, timestamp, false, (dbFormat & DB_FORMAT_ADD_DML) != 0, true);
+            appendHeader(scn, timestamp, false, (formats.dbFormat & DB_FORMAT_ADD_DML) != 0, true);
 
             if (hasPreviousValue)
                 append(',');
             else
                 hasPreviousValue = true;
 
-            if ((attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
+            if ((formats.attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
                 appendAttributes();
 
             append(R"("payload":[)", sizeof(R"("payload":[)") - 1);
         }
 
         append(R"({"op":"c",)", sizeof(R"({"op":"c",)") - 1);
-        if ((messageFormat & MESSAGE_FORMAT_ADD_OFFSET) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_ADD_OFFSET) != 0) {
             append(R"("offset":)", sizeof(R"("offset":)") - 1);
             appendDec(offset);
             append(',');
@@ -573,7 +591,7 @@ namespace OpenLogReplicator {
         appendAfter(lobCtx, xmlCtx, table, offset);
         append('}');
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) == 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) == 0) {
             append("]}", sizeof("]}") - 1);
             builderCommit(false);
         }
@@ -585,7 +603,7 @@ namespace OpenLogReplicator {
         if (newTran)
             processBeginMessage(scn, sequence, timestamp);
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) != 0) {
             if (hasPreviousRedo)
                 append(',');
             else
@@ -594,21 +612,21 @@ namespace OpenLogReplicator {
             builderBegin(scn, sequence, obj, 0);
             append('{');
             hasPreviousValue = false;
-            appendHeader(scn, timestamp, false, (dbFormat & DB_FORMAT_ADD_DML) != 0, true);
+            appendHeader(scn, timestamp, false, (formats.dbFormat & DB_FORMAT_ADD_DML) != 0, true);
 
             if (hasPreviousValue)
                 append(',');
             else
                 hasPreviousValue = true;
 
-            if ((attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
+            if ((formats.attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
                 appendAttributes();
 
             append(R"("payload":[)", sizeof(R"("payload":[)") - 1);
         }
 
         append(R"({"op":"u",)", sizeof(R"({"op":"u",)") - 1);
-        if ((messageFormat & MESSAGE_FORMAT_ADD_OFFSET) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_ADD_OFFSET) != 0) {
             append(R"("offset":)", sizeof(R"("offset":)") - 1);
             appendDec(offset);
             append(',');
@@ -619,7 +637,7 @@ namespace OpenLogReplicator {
         appendAfter(lobCtx, xmlCtx, table, offset);
         append('}');
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) == 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) == 0) {
             append("]}", sizeof("]}") - 1);
             builderCommit(false);
         }
@@ -631,7 +649,7 @@ namespace OpenLogReplicator {
         if (newTran)
             processBeginMessage(scn, sequence, timestamp);
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) != 0) {
             if (hasPreviousRedo)
                 append(',');
             else
@@ -640,21 +658,21 @@ namespace OpenLogReplicator {
             builderBegin(scn, sequence, obj, 0);
             append('{');
             hasPreviousValue = false;
-            appendHeader(scn, timestamp, false, (dbFormat & DB_FORMAT_ADD_DML) != 0, true);
+            appendHeader(scn, timestamp, false, (formats.dbFormat & DB_FORMAT_ADD_DML) != 0, true);
 
             if (hasPreviousValue)
                 append(',');
             else
                 hasPreviousValue = true;
 
-            if ((attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
+            if ((formats.attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
                 appendAttributes();
 
             append(R"("payload":[)", sizeof(R"("payload":[)") - 1);
         }
 
         append(R"({"op":"d",)", sizeof(R"({"op":"d",)") - 1);
-        if ((messageFormat & MESSAGE_FORMAT_ADD_OFFSET) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_ADD_OFFSET) != 0) {
             append(R"("offset":)", sizeof(R"("offset":)") - 1);
             appendDec(offset);
             append(',');
@@ -664,7 +682,7 @@ namespace OpenLogReplicator {
         appendBefore(lobCtx, xmlCtx, table, offset);
         append('}');
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) == 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) == 0) {
             append("]}", sizeof("]}") - 1);
             builderCommit(false);
         }
@@ -677,7 +695,7 @@ namespace OpenLogReplicator {
         if (newTran)
             processBeginMessage(scn, sequence, timestamp);
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) != 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) != 0) {
             if (hasPreviousRedo)
                 append(',');
             else
@@ -686,14 +704,14 @@ namespace OpenLogReplicator {
             builderBegin(scn, sequence, obj, 0);
             append('{');
             hasPreviousValue = false;
-            appendHeader(scn, timestamp, false, (dbFormat & DB_FORMAT_ADD_DDL) != 0, true);
+            appendHeader(scn, timestamp, false, (formats.dbFormat & DB_FORMAT_ADD_DDL) != 0, true);
 
             if (hasPreviousValue)
                 append(',');
             else
                 hasPreviousValue = true;
 
-            if ((attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
+            if ((formats.attributesFormat & ATTRIBUTES_FORMAT_DML) != 0)
                 appendAttributes();
 
             append(R"("payload":[)", sizeof(R"("payload":[)") - 1);
@@ -705,7 +723,7 @@ namespace OpenLogReplicator {
         appendEscape(sql, sqlSize);
         append(R"("})", sizeof(R"("})") - 1);
 
-        if ((messageFormat & MESSAGE_FORMAT_FULL) == 0) {
+        if ((formats.messageFormat & MESSAGE_FORMAT_FULL) == 0) {
             append("]}", sizeof("]}") - 1);
             builderCommit(true);
         }

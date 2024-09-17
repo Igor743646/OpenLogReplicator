@@ -215,7 +215,7 @@ namespace OpenLogReplicator {
             const rapidjson::Value& sourceJson = Ctx::getJsonFieldO(configFileName, sourceArrayJson, "source", j);
 
             if (!ctx->disableChecksSet(Ctx::DISABLE_CHECKS_JSON_TAGS)) {
-                static const char* sourceNames[] = {"alias", "memory", "name", "reader", "flags", "state", "debug",
+                static const char* sourceNames[] = {"alias", "memory", "name", "reader", "flags", "skip-rollback", "state", "debug",
                                                     "transaction-max-mb", "metrics", "format", "redo-read-sleep-us", "arch-read-sleep-us",
                                                     "arch-read-tries", "redo-verify-delay-us", "refresh-interval-us", "arch",
                                                     "filter", nullptr};
@@ -289,6 +289,13 @@ namespace OpenLogReplicator {
                                                         ", expected: one of {0 .. 524287}");
                 if (ctx->isFlagSet(Ctx::REDO_FLAGS_DIRECT_DISABLE))
                     ctx->redoVerifyDelayUs = 500000;
+            }
+
+            if (sourceJson.HasMember("skip-rollback")) {
+                ctx->skipRollback = Ctx::getJsonFieldU64(configFileName, sourceJson, "skip-rollback");
+                if (ctx->skipRollback > 1)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"skip-rollback\" value: " + std::to_string(ctx->skipRollback) +
+                                                        ", expected: 0 or 1");
             }
 
             if (readerJson.HasMember("disable-checks")) {
@@ -452,7 +459,7 @@ namespace OpenLogReplicator {
 
                 if (metricsJson.HasMember("type")) {
                     const char* metricsType = Ctx::getJsonFieldS(configFileName, Ctx::JSON_PARAMETER_LENGTH, metricsJson, "type");
-                    uint64_t tagNames = Metrics::TAG_NAMES_NONE;
+                    __attribute_maybe_unused__ uint64_t tagNames = Metrics::TAG_NAMES_NONE;
 
                     if (metricsJson.HasMember("tag-names")) {
                         const char* tagNamesStr = Ctx::getJsonFieldS(configFileName, Ctx::JSON_TOPIC_LENGTH, metricsJson, "tag-names");
@@ -498,141 +505,143 @@ namespace OpenLogReplicator {
                 Ctx::checkJsonFields(configFileName, formatJson, formatNames);
             }
 
-            uint64_t dbFormat = Builder::DB_FORMAT_DEFAULT;
+            BuilderSettings builderFormats;
+
+            builderFormats.dbFormat = Builder::DB_FORMAT_DEFAULT;
             if (formatJson.HasMember("db")) {
-                dbFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "db");
-                if (dbFormat > 3)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"db\" value: " + std::to_string(dbFormat) +
+                builderFormats.dbFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "db");
+                if (builderFormats.dbFormat > 3)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"db\" value: " + std::to_string(builderFormats.dbFormat) +
                                                         ", expected: one of {0 .. 3}");
             }
 
-            uint64_t attributesFormat = Builder::ATTRIBUTES_FORMAT_DEFAULT;
+            builderFormats.attributesFormat = Builder::ATTRIBUTES_FORMAT_DEFAULT;
             if (formatJson.HasMember("attributes")) {
-                attributesFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "attributes");
-                if (attributesFormat > 7)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"attributes\" value: " + std::to_string(attributesFormat) +
+                builderFormats.attributesFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "attributes");
+                if (builderFormats.attributesFormat > 7)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"attributes\" value: " + std::to_string(builderFormats.attributesFormat) +
                                                         ", expected: one of {0 .. 7}");
             }
 
-            uint64_t intervalDtsFormat = Builder::INTERVAL_DTS_FORMAT_UNIX_NANO;
+            builderFormats.intervalDtsFormat = Builder::INTERVAL_DTS_FORMAT_UNIX_NANO;
             if (formatJson.HasMember("interval-dts")) {
-                intervalDtsFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "interval-dts");
-                if (intervalDtsFormat > 10)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"interval-dts\" value: " + std::to_string(intervalDtsFormat) +
+                builderFormats.intervalDtsFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "interval-dts");
+                if (builderFormats.intervalDtsFormat > 10)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"interval-dts\" value: " + std::to_string(builderFormats.intervalDtsFormat) +
                                                         ", expected: one of {0 .. 10}");
             }
 
-            uint64_t intervalYtmFormat = Builder::INTERVAL_YTM_FORMAT_MONTHS;
+            builderFormats.intervalYtmFormat = Builder::INTERVAL_YTM_FORMAT_MONTHS;
             if (formatJson.HasMember("interval-ytm")) {
-                intervalYtmFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "interval-ytm");
-                if (intervalYtmFormat > 4)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"interval-ytm\" value: " + std::to_string(intervalYtmFormat) +
+                builderFormats.intervalYtmFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "interval-ytm");
+                if (builderFormats.intervalYtmFormat > 4)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"interval-ytm\" value: " + std::to_string(builderFormats.intervalYtmFormat) +
                                                         ", expected: one of {0 .. 4}");
             }
 
-            uint64_t messageFormat = Builder::MESSAGE_FORMAT_DEFAULT;
+            builderFormats.messageFormat = Builder::MESSAGE_FORMAT_DEFAULT;
             if (formatJson.HasMember("message")) {
-                messageFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "message");
-                if (messageFormat > 31)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"message\" value: " + std::to_string(messageFormat) +
+                builderFormats.messageFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "message");
+                if (builderFormats.messageFormat > 31)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"message\" value: " + std::to_string(builderFormats.messageFormat) +
                                                         ", expected: one of {0 .. 31}");
-                if ((messageFormat & Builder::MESSAGE_FORMAT_FULL) != 0 &&
-                        (messageFormat & (Builder::MESSAGE_FORMAT_SKIP_BEGIN | Builder::MESSAGE_FORMAT_SKIP_COMMIT)) != 0)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"message\" value: " + std::to_string(messageFormat) +
+                if ((builderFormats.messageFormat & Builder::MESSAGE_FORMAT_FULL) != 0 &&
+                        (builderFormats.messageFormat & (Builder::MESSAGE_FORMAT_SKIP_BEGIN | Builder::MESSAGE_FORMAT_SKIP_COMMIT)) != 0)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"message\" value: " + std::to_string(builderFormats.messageFormat) +
                                                         ", expected: BEGIN/COMMIT flag is unset (" + std::to_string(Builder::MESSAGE_FORMAT_SKIP_BEGIN) + "/" +
                                                         std::to_string(Builder::MESSAGE_FORMAT_SKIP_COMMIT) + ") together with FULL mode (" +
                                                         std::to_string(Builder::MESSAGE_FORMAT_FULL) + ")");
             }
 
-            uint64_t ridFormat = Builder::RID_FORMAT_SKIP;
+            builderFormats.ridFormat = Builder::RID_FORMAT_SKIP;
             if (formatJson.HasMember("rid")) {
-                ridFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "rid");
-                if (ridFormat > 1)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"rid\" value: " + std::to_string(ridFormat) +
+                builderFormats.ridFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "rid");
+                if (builderFormats.ridFormat > 1)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"rid\" value: " + std::to_string(builderFormats.ridFormat) +
                                                         ", expected: one of {0, 1}");
             }
 
-            uint64_t xidFormat = Builder::XID_FORMAT_TEXT_HEX;
+            builderFormats.xidFormat = Builder::XID_FORMAT_TEXT_HEX;
             if (formatJson.HasMember("xid")) {
-                xidFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "xid");
-                if (xidFormat > 2)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"xid\" value: " + std::to_string(xidFormat) +
+                builderFormats.xidFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "xid");
+                if (builderFormats.xidFormat > 2)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"xid\" value: " + std::to_string(builderFormats.xidFormat) +
                                                         ", expected: one of {0 .. 2}");
             }
 
-            uint64_t timestampFormat = Builder::TIMESTAMP_FORMAT_UNIX_NANO;
+            builderFormats.timestampFormat = Builder::TIMESTAMP_FORMAT_UNIX_NANO;
             if (formatJson.HasMember("timestamp")) {
-                timestampFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "timestamp");
-                if (timestampFormat > 15)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"timestamp\" value: " + std::to_string(timestampFormat) +
+                builderFormats.timestampFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "timestamp");
+                if (builderFormats.timestampFormat > 15)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"timestamp\" value: " + std::to_string(builderFormats.timestampFormat) +
                                                         ", expected: one of {0 .. 15}");
             }
 
-            uint64_t timestampTzFormat = Builder::TIMESTAMP_TZ_FORMAT_UNIX_NANO_STRING;
+            builderFormats.timestampTzFormat = Builder::TIMESTAMP_TZ_FORMAT_UNIX_NANO_STRING;
             if (formatJson.HasMember("timestamp-tz")) {
-                timestampTzFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "timestamp-tz");
-                if (timestampTzFormat > 11)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"timestamp-tz\" value: " + std::to_string(timestampTzFormat) +
+                builderFormats.timestampTzFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "timestamp-tz");
+                if (builderFormats.timestampTzFormat > 11)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"timestamp-tz\" value: " + std::to_string(builderFormats.timestampTzFormat) +
                                                         ", expected: one of {0 .. 11}");
             }
 
-            uint64_t timestampAll = Builder::TIMESTAMP_JUST_BEGIN;
+            builderFormats.timestampAll = Builder::TIMESTAMP_JUST_BEGIN;
             if (formatJson.HasMember("timestamp-all")) {
-                timestampAll = Ctx::getJsonFieldU64(configFileName, formatJson, "timestamp-all");
-                if (timestampAll > 1)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"timestamp-all\" value: " + std::to_string(timestampAll) +
+                builderFormats.timestampAll = Ctx::getJsonFieldU64(configFileName, formatJson, "timestamp-all");
+                if (builderFormats.timestampAll > 1)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"timestamp-all\" value: " + std::to_string(builderFormats.timestampAll) +
                                                         ", expected: one of {0, 1}");
             }
 
-            uint64_t charFormat = Builder::CHAR_FORMAT_UTF8;
+            builderFormats.charFormat = Builder::CHAR_FORMAT_UTF8;
             if (formatJson.HasMember("char")) {
-                charFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "char");
-                if (charFormat > 3)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"char\" value: " + std::to_string(charFormat) +
+                builderFormats.charFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "char");
+                if (builderFormats.charFormat > 3)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"char\" value: " + std::to_string(builderFormats.charFormat) +
                                                         ", expected: one of {0 .. 3}");
             }
 
-            uint64_t scnFormat = Builder::SCN_FORMAT_NUMERIC;
+            builderFormats.scnFormat = Builder::SCN_FORMAT_NUMERIC;
             if (formatJson.HasMember("scn")) {
-                scnFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "scn");
-                if (scnFormat > 3)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"scn\" value: " + std::to_string(scnFormat) +
+                builderFormats.scnFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "scn");
+                if (builderFormats.scnFormat > 3)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"scn\" value: " + std::to_string(builderFormats.scnFormat) +
                                                         ", expected: one of {0 .. 3}");
             }
 
-            uint64_t scnAll = Builder::SCN_JUST_BEGIN;
+            builderFormats.scnAll = Builder::SCN_JUST_BEGIN;
             if (formatJson.HasMember("scn-all")) {
-                scnAll = Ctx::getJsonFieldU64(configFileName, formatJson, "scn-all");
-                if (scnAll > 1)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"scn-all\" value: " + std::to_string(scnAll) +
+                builderFormats.scnAll = Ctx::getJsonFieldU64(configFileName, formatJson, "scn-all");
+                if (builderFormats.scnAll > 1)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"scn-all\" value: " + std::to_string(builderFormats.scnAll) +
                                                         ", expected: one of {0, 1}");
             }
 
-            uint64_t unknownFormat = Builder::UNKNOWN_FORMAT_QUESTION_MARK;
+            builderFormats.unknownFormat = Builder::UNKNOWN_FORMAT_QUESTION_MARK;
             if (formatJson.HasMember("unknown")) {
-                unknownFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "unknown");
-                if (unknownFormat > 1)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"unknown\" value: " + std::to_string(unknownFormat) +
+                builderFormats.unknownFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "unknown");
+                if (builderFormats.unknownFormat > 1)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"unknown\" value: " + std::to_string(builderFormats.unknownFormat) +
                                                         ", expected: one of {0, 1}");
             }
 
-            uint64_t schemaFormat = Builder::SCHEMA_FORMAT_NAME;
+            builderFormats.schemaFormat = Builder::SCHEMA_FORMAT_NAME;
             if (formatJson.HasMember("schema")) {
-                schemaFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "schema");
-                if (schemaFormat > 7)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"schema\" value: " + std::to_string(schemaFormat) +
+                builderFormats.schemaFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "schema");
+                if (builderFormats.schemaFormat > 7)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"schema\" value: " + std::to_string(builderFormats.schemaFormat) +
                                                         ", expected: one of {0 .. 7}");
             }
 
-            uint64_t columnFormat = Builder::COLUMN_FORMAT_CHANGED;
+            builderFormats.columnFormat = Builder::COLUMN_FORMAT_CHANGED;
             if (formatJson.HasMember("column")) {
-                columnFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "column");
-                if (columnFormat > 2)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"column\" value: " + std::to_string(columnFormat) +
+                builderFormats.columnFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "column");
+                if (builderFormats.columnFormat > 2)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"column\" value: " + std::to_string(builderFormats.columnFormat) +
                                                         ", expected: one of {0 .. 2}");
 
-                if (ctx->isFlagSet(Ctx::REDO_FLAGS_SCHEMALESS) && columnFormat != 0)
-                    throw ConfigurationException(30001, "bad JSON, invalid \"column\" value: " + std::to_string(columnFormat) +
+                if (ctx->isFlagSet(Ctx::REDO_FLAGS_SCHEMALESS) && builderFormats.columnFormat != 0)
+                    throw ConfigurationException(30001, "bad JSON, invalid \"column\" value: " + std::to_string(builderFormats.columnFormat) +
                                                         ", expected: not used when flags has set schemaless mode (flags: " + std::to_string(ctx->flags) + ")");
             }
 
@@ -652,11 +661,7 @@ namespace OpenLogReplicator {
 
             Builder* builder;
             if (strcmp("json", formatType) == 0) {
-                builder = new BuilderJson(ctx, locales, metadata, dbFormat, attributesFormat,
-                                          intervalDtsFormat, intervalYtmFormat, messageFormat,
-                                          ridFormat, xidFormat, timestampFormat,
-                                          timestampTzFormat, timestampAll, charFormat, scnFormat,
-                                          scnAll, unknownFormat, schemaFormat, columnFormat,
+                builder = new BuilderJson(ctx, locales, metadata, builderFormats,
                                           unknownType, flushBuffer);
             } else if (strcmp("protobuf", formatType) == 0) {
 #ifdef LINK_LIBRARY_PROTOBUF

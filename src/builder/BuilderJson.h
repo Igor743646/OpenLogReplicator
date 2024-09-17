@@ -82,14 +82,15 @@ namespace OpenLogReplicator {
         }
 
         inline void appendRowid(typeDataObj dataObj, typeDba bdba, typeSlot slot) {
-            if ((messageFormat & MESSAGE_FORMAT_ADD_SEQUENCES) != 0) {
+            if ((formats.messageFormat & MESSAGE_FORMAT_ADD_SEQUENCES) != 0) {
                 append(R"(,"num":)", sizeof(R"(,"num":)") - 1);
                 appendDec(num);
             }
 
-            if (ridFormat == RID_FORMAT_SKIP)
+            if (formats.ridFormat == RID_FORMAT_SKIP)
                 return;
-            else if (ridFormat == RID_FORMAT_TEXT) {
+
+            if (formats.ridFormat == RID_FORMAT_TEXT) {
                 typeRowId rowId(dataObj, bdba, slot);
                 char str[19];
                 rowId.toString(str);
@@ -100,13 +101,13 @@ namespace OpenLogReplicator {
         }
 
         inline void appendHeader(typeScn scn, time_t timestamp, bool first, bool showDb, bool showXid) {
-            if (first || (scnAll & SCN_ALL_PAYLOADS) != 0) {
+            if (first || (formats.scnAll & SCN_ALL_PAYLOADS) != 0) {
                 if (hasPreviousValue)
                     append(',');
                 else
                     hasPreviousValue = true;
 
-                if ((scnFormat & SCN_FORMAT_TEXT_HEX) != 0) {
+                if ((formats.scnFormat & SCN_FORMAT_TEXT_HEX) != 0) {
                     append(R"("scns":"0x)", sizeof(R"("scns":"0x)") - 1);
                     appendHex16(scn);
                     append('"');
@@ -116,14 +117,14 @@ namespace OpenLogReplicator {
                 }
             }
 
-            if (first || (timestampAll & TIMESTAMP_ALL_PAYLOADS) != 0) {
+            if (first || (formats.timestampAll & TIMESTAMP_ALL_PAYLOADS) != 0) {
                 if (hasPreviousValue)
                     append(',');
                 else
                     hasPreviousValue = true;
 
                 char buffer[22];
-                switch (timestampFormat) {
+                switch (formats.timestampFormat) {
                     case TIMESTAMP_FORMAT_UNIX_NANO:
                         append(R"("tm":)", sizeof(R"("tm":)") - 1);
                         appendDec(timestamp);
@@ -245,7 +246,7 @@ namespace OpenLogReplicator {
                 else
                     hasPreviousValue = true;
 
-                if (xidFormat == XID_FORMAT_TEXT_HEX) {
+                if (formats.xidFormat == XID_FORMAT_TEXT_HEX) {
                     append(R"("xid":"0x)", sizeof(R"("xid":"0x)") - 1);
                     appendHex4(lastXid.usn());
                     append('.');
@@ -253,7 +254,7 @@ namespace OpenLogReplicator {
                     append('.');
                     appendHex8(lastXid.sqn());
                     append('"');
-                } else if (xidFormat == XID_FORMAT_TEXT_DEC) {
+                } else if (formats.xidFormat == XID_FORMAT_TEXT_DEC) {
                     append(R"("xid":")", sizeof(R"("xid":")") - 1);
                     appendDec(lastXid.usn());
                     append('.');
@@ -261,7 +262,7 @@ namespace OpenLogReplicator {
                     append('.');
                     appendDec(lastXid.sqn());
                     append('"');
-                } else if (xidFormat == XID_FORMAT_NUMERIC) {
+                } else if (formats.xidFormat == XID_FORMAT_NUMERIC) {
                     append(R"("xidn":)", sizeof(R"("xidn":)") - 1);
                     appendDec(lastXid.getData());
                 }
@@ -315,7 +316,7 @@ namespace OpenLogReplicator {
                     append('"');
                 }
 
-                if ((schemaFormat & SCHEMA_FORMAT_OBJ) != 0) {
+                if ((formats.schemaFormat & SCHEMA_FORMAT_OBJ) != 0) {
                     append(R"(,"obj":)", sizeof(R"(,"obj":)") - 1);
                     appendDec(obj);
                 }
@@ -329,13 +330,13 @@ namespace OpenLogReplicator {
             appendEscape(table->name);
             append('"');
 
-            if ((schemaFormat & SCHEMA_FORMAT_OBJ) != 0) {
+            if ((formats.schemaFormat & SCHEMA_FORMAT_OBJ) != 0) {
                 append(R"(,"obj":)", sizeof(R"(,"obj":)") - 1);
                 appendDec(obj);
             }
 
-            if ((schemaFormat & SCHEMA_FORMAT_FULL) != 0) {
-                if ((schemaFormat & SCHEMA_FORMAT_REPEATED) == 0) {
+            if ((formats.schemaFormat & SCHEMA_FORMAT_FULL) != 0) {
+                if ((formats.schemaFormat & SCHEMA_FORMAT_REPEATED) == 0) {
                     if (tables.count(table) > 0)
                         return;
                     else
@@ -611,7 +612,7 @@ namespace OpenLogReplicator {
             append(R"(,"after":{)", sizeof(R"(,"after":{)") - 1);
 
             hasPreviousColumn = false;
-            if (columnFormat > 0 && table != nullptr) {
+            if (formats.columnFormat > 0 && table != nullptr) {
                 for (typeCol column = 0; column < table->maxSegCol; ++column) {
                     if (values[column][VALUE_AFTER] != nullptr) {
                         if (sizes[column][VALUE_AFTER] > 0)
@@ -648,7 +649,7 @@ namespace OpenLogReplicator {
             append(R"(,"before":{)", sizeof(R"(,"before":{)") - 1);
 
             hasPreviousColumn = false;
-            if (columnFormat > 0 && table != nullptr) {
+            if (formats.columnFormat > 0 && table != nullptr) {
                 for (typeCol column = 0; column < table->maxSegCol; ++column) {
                     if (values[column][VALUE_BEFORE] != nullptr) {
                         if (sizes[column][VALUE_BEFORE] > 0)
@@ -701,12 +702,10 @@ namespace OpenLogReplicator {
         virtual void processBeginMessage(typeScn scn, typeSeq sequence, time_t timestamp) override;
 
     public:
-        BuilderJson(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, uint64_t newDbFormat, uint64_t newAttributesFormat, uint64_t newIntervalDtsFormat,
-                    uint64_t newIntervalYtmFormat, uint64_t newMessageFormat, uint64_t newRidFormat, uint64_t newXidFormat, uint64_t newTimestampFormat,
-                    uint64_t newTimestampTzFormat, uint64_t newTimestampAll, uint64_t newCharFormat, uint64_t newScnFormat, uint64_t newScnAll,
-                    uint64_t newUnknownFormat, uint64_t newSchemaFormat, uint64_t newColumnFormat, uint64_t newUnknownType, uint64_t newFlushBuffer);
+        BuilderJson(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, BuilderSettings newFormats, uint64_t newUnknownType, uint64_t newFlushBuffer);
 
         virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp) override;
+        virtual void processRollback(typeScn scn, typeSeq sequence, time_t timestamp) override;
         virtual void processCheckpoint(typeScn scn, typeSeq sequence, time_t timestamp, uint64_t offset, bool redo) override;
     };
 }

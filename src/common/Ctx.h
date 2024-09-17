@@ -240,6 +240,7 @@ namespace OpenLogReplicator {
         std::atomic<uint64_t> logLevel;
         std::atomic<uint64_t> trace;
         std::atomic<uint64_t> flags;
+        std::atomic<uint64_t> skipRollback;
         std::atomic<uint64_t> disableChecks;
         std::atomic<bool> hardShutdown;
         std::atomic<bool> softShutdown;

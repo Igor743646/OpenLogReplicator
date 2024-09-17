@@ -195,7 +195,7 @@ namespace OpenLogReplicator {
         std::unique_lock<std::mutex> lckTransaction(metadata->mtxTransaction);
         std::unique_lock<std::mutex> lckSchema(metadata->mtxSchema, std::defer_lock);
 
-        if (opCodes == 0 || rollback)
+        if (opCodes == 0 || (metadata->ctx->skipRollback == 1 && rollback))
             return;
         if (unlikely(metadata->ctx->trace & Ctx::TRACE_TRANSACTION))
             metadata->ctx->logTrace(Ctx::TRACE_TRANSACTION, toString());
@@ -497,10 +497,18 @@ namespace OpenLogReplicator {
                                                   redoLogRecord1);
                         opFlush = true;
                         break;
-
+                    
+                    case 0x0b05050b:
+                        // rollback
+                        builder->processRollback(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
+                        opFlush = true;
+                        break;
+                    
                     default:
                         // Should not happen
-                        throw RedoLogException(50057, "unknown op code " + std::to_string(op) + ", offset: " +
+                        std::stringstream sstream;
+                        sstream << std::hex << op;
+                        throw RedoLogException(50057, "unknown op code " + sstream.str() + ", offset: " +
                                                       std::to_string(redoLogRecord1->dataOffset));
                 }
 
