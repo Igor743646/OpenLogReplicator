@@ -533,30 +533,6 @@ namespace OpenLogReplicator {
         num = 0;
     }
 
-    void BuilderJson::processRollback(typeScn scn, typeSeq sequence, time_t timestamp) {
-        if (newTran) {
-            processBeginMessage(scn, sequence, timestamp);
-        }
-        builderBegin(scn, sequence, 0, 0);
-        append('{');
-
-        hasPreviousValue = false;
-        appendHeader(scn, timestamp, false, (formats.dbFormat & DB_FORMAT_ADD_DML) != 0, true);
-
-        if (hasPreviousValue)
-            append(',');
-        else
-            hasPreviousValue = true;
-
-        if ((formats.attributesFormat & ATTRIBUTES_FORMAT_COMMIT) != 0)
-            appendAttributes();
-
-        append(R"("payload":[{"op":"rollback"}]})", sizeof(R"("payload":[{"op":"rollback"}]})") - 1);
-        builderCommit(true);
-
-        ++num;
-    }
-
     void BuilderJson::processInsert(typeScn scn, typeSeq sequence, time_t timestamp, LobCtx* lobCtx, const XmlCtx* xmlCtx, const OracleTable* table,
                                     typeObj obj, typeDataObj dataObj, typeDba bdba, typeSlot slot, typeXid xid  __attribute__((unused)), uint64_t offset) {
         if (newTran)
