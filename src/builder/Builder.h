@@ -1339,7 +1339,7 @@ namespace OpenLogReplicator {
                         std::deque<const RedoLogRecord*>& redo2, uint64_t type, bool system, bool schema, bool dump);
         void processDdlHeader(typeScn scn, typeSeq sequence, time_t timestamp, const RedoLogRecord* redoLogRecord1);
         virtual void initialize();
-        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp) = 0;
+        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp, bool rollback = false) = 0;
         virtual void processRollback(typeScn scn, typeSeq sequence, time_t timestamp) = 0;
         virtual void processCheckpoint(typeScn scn, typeSeq sequence, time_t timestamp, uint64_t offset, bool redo) = 0;
         void releaseBuffers(uint64_t maxId);

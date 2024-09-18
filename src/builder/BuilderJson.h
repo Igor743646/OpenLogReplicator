@@ -704,7 +704,7 @@ namespace OpenLogReplicator {
     public:
         BuilderJson(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, BuilderSettings newFormats, uint64_t newUnknownType, uint64_t newFlushBuffer);
 
-        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp) override;
+        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp, bool rollback = false) override;
         virtual void processRollback(typeScn scn, typeSeq sequence, time_t timestamp) override;
         virtual void processCheckpoint(typeScn scn, typeSeq sequence, time_t timestamp, uint64_t offset, bool redo) override;
     };

@@ -1801,6 +1801,9 @@ namespace OpenLogReplicator {
             }
         }
 
+        if (likely(ctx->dumpRedoLog < 1))
+            return;
+
         if (unlikely(ctx->dumpRedoLog >= 1)) {
             const uint32_t tsn = ctx->read32(redoLogRecord->data() + fieldPos + 8);
             const typeRci rci = redoLogRecord->data()[fieldPos + 19];
@@ -1911,9 +1914,6 @@ namespace OpenLogReplicator {
             else
                 userOnly = " No";
         }
-
-        if (ctx->dumpRedoLog < 1)
-            return;
 
         if (ktubl) {
             // KTUBL

@@ -498,9 +498,17 @@ namespace OpenLogReplicator {
                         opFlush = true;
                         break;
                     
-                    case 0x0b05050b:
-                        // rollback
-                        builder->processRollback(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
+                    case 0x0B020506:
+                        // Rollback insert row piece
+                    case 0x0B02050B:
+                        // Rollback insert row piece
+                    case 0x0B030506:
+                        // Rollback delete row piece
+                    case 0x0B050506:
+                        // Rollback update row piece
+                    case 0x0B05050B:
+                        // Rollback update row piece
+                        // builder->processRollback(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
                         opFlush = true;
                         break;
                     
@@ -529,7 +537,7 @@ namespace OpenLogReplicator {
                         builder->systemTransaction = new SystemTransaction(builder, metadata);
                     }
 
-                    builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
+                    builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone), rollback);
                     builder->processBegin(xid, commitScn, lwnScn, &attributes);
                 }
 
@@ -572,7 +580,7 @@ namespace OpenLogReplicator {
             // Unlock schema
             lckSchema.unlock();
         }
-        builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
+        builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone), rollback);
     }
 
     void Transaction::purge(TransactionBuffer* transactionBuffer) {

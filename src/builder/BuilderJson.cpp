@@ -498,7 +498,7 @@ namespace OpenLogReplicator {
         }
     }
 
-    void BuilderJson::processCommit(typeScn scn, typeSeq sequence, time_t timestamp) {
+    void BuilderJson::processCommit(typeScn scn, typeSeq sequence, time_t timestamp, bool rollback) {
         // Skip empty transaction
         if (newTran) {
             newTran = false;
@@ -523,7 +523,11 @@ namespace OpenLogReplicator {
             if ((formats.attributesFormat & ATTRIBUTES_FORMAT_COMMIT) != 0)
                 appendAttributes();
 
-            append(R"("payload":[{"op":"commit"}]})", sizeof(R"("payload":[{"op":"commit"}]})") - 1);
+            if (unlikely(rollback))
+                append(R"("payload":[{"op":"rollback"}]})", sizeof(R"("payload":[{"op":"rollback"}]})") - 1);
+            else
+                append(R"("payload":[{"op":"commit"}]})", sizeof(R"("payload":[{"op":"commit"}]})") - 1);
+
             builderCommit(true);
         }
         num = 0;
