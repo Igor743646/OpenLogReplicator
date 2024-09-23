@@ -33,6 +33,7 @@ namespace OpenLogReplicator {
             changeHeader << "############\n";
             changeHeader << "# CHANGE " << std::setw(2) << std::dec << static_cast<uint64_t>(redoLogRecord->vectorNo) << "#\n";
             changeHeader << "############\n";
+            changeHeader << "FIELDS COUNT: " << redoLogRecord->fieldCnt;
 
             if (ctx->version < RedoLogRecord::REDO_VERSION_12_1) {
                 if (redoLogRecord->typ == 6)
