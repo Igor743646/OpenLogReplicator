@@ -343,9 +343,9 @@ namespace OpenLogReplicator {
                                               std::to_string(redoLogRecord[vectorCur].fieldSizesDelta) +
                                               ") outside of record, size: " + std::to_string(recordSize));
             }
-            redoLogRecord[vectorCur].fieldCnt = (ctx->read16(redoLogRecord[vectorCur].data() + redoLogRecord[vectorCur].fieldSizesDelta) - 2) / 2;
+            redoLogRecord[vectorCur].fieldCnt = (ctx->read16(fieldList) - 2) / 2;
             redoLogRecord[vectorCur].fieldPos = fieldOffset +
-                                                ((ctx->read16(redoLogRecord[vectorCur].data() + redoLogRecord[vectorCur].fieldSizesDelta) + 2) & 0xFFFC);
+                                                ((ctx->read16(fieldList) + 2) & 0xFFFC);
             if (unlikely(redoLogRecord[vectorCur].fieldPos >= recordSize)) {
                 dumpRedoVector(data, recordSize);
                 throw RedoLogException(50046, "block: " + std::to_string(lwnMember->block) + ", offset: " +
@@ -823,7 +823,11 @@ namespace OpenLogReplicator {
             }
         }
 
-        transaction->rollbackLastOp(metadata, transactionBuffer, redoLogRecord1);
+        if (likely(ctx->skipRollback == 0)) {
+            transaction->add(metadata, transactionBuffer, redoLogRecord1);
+        } else {
+            transaction->rollbackLastOp(metadata, transactionBuffer, redoLogRecord1);
+        }
     }
 
     void Parser::appendToTransactionBegin(RedoLogRecord* redoLogRecord1) {
@@ -1110,7 +1114,11 @@ namespace OpenLogReplicator {
                 return;
         }
 
-        transaction->rollbackLastOp(metadata, transactionBuffer, redoLogRecord1, redoLogRecord2);
+        if (likely(ctx->skipRollback == 0)) {
+            transaction->add(metadata, transactionBuffer, redoLogRecord1, redoLogRecord2);
+        } else {
+            transaction->rollbackLastOp(metadata, transactionBuffer, redoLogRecord1, redoLogRecord2);
+        }
     }
 
     void Parser::appendToTransactionIndex(RedoLogRecord* redoLogRecord1, RedoLogRecord* redoLogRecord2) {

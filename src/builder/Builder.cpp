@@ -32,31 +32,32 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #include "SystemTransaction.h"
 
 namespace OpenLogReplicator {
-    Builder::Builder(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, uint64_t newDbFormat, uint64_t newAttributesFormat,
-                     uint64_t newIntervalDtsFormat, uint64_t newIntervalYtmFormat, uint64_t newMessageFormat, uint64_t newRidFormat, uint64_t newXidFormat,
-                     uint64_t newTimestampFormat, uint64_t newTimestampTzFormat, uint64_t newTimestampAll, uint64_t newCharFormat, uint64_t newScnFormat,
-                     uint64_t newScnAll, uint64_t newUnknownFormat, uint64_t newSchemaFormat, uint64_t newColumnFormat, uint64_t newUnknownType,
+    Builder::Builder(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, BuilderSettings newFormats, uint64_t newUnknownType,
                      uint64_t newFlushBuffer) :
             ctx(newCtx),
             locales(newLocales),
             metadata(newMetadata),
             msg(nullptr),
-            dbFormat(newDbFormat),
-            attributesFormat(newAttributesFormat),
-            intervalDtsFormat(newIntervalDtsFormat),
-            intervalYtmFormat(newIntervalYtmFormat),
-            messageFormat(newMessageFormat),
-            ridFormat(newRidFormat),
-            xidFormat(newXidFormat),
-            timestampFormat(newTimestampFormat),
-            timestampTzFormat(newTimestampTzFormat),
-            timestampAll(newTimestampAll),
-            charFormat(newCharFormat),
-            scnFormat(newScnFormat),
-            scnAll(newScnAll),
-            unknownFormat(newUnknownFormat),
-            schemaFormat(newSchemaFormat),
-            columnFormat(newColumnFormat),
+            formats(newFormats
+                // {
+                //     .dbFormat = (newDbFormat),
+                //     .attributesFormat = (newAttributesFormat),
+                //     .intervalDtsFormat = (newIntervalDtsFormat),
+                //     .intervalYtmFormat = (newIntervalYtmFormat),
+                //     .messageFormat = (newMessageFormat),
+                //     .ridFormat = (newRidFormat),
+                //     .xidFormat = (newXidFormat),
+                //     .timestampFormat = (newTimestampFormat),
+                //     .timestampTzFormat = (newTimestampTzFormat),
+                //     .timestampAll = (newTimestampAll),
+                //     .charFormat = (newCharFormat),
+                //     .scnFormat = (newScnFormat),
+                //     .scnAll = (newScnAll),
+                //     .unknownFormat = (newUnknownFormat),
+                //     .schemaFormat = (newSchemaFormat),
+                //     .columnFormat = (newColumnFormat),
+                // }
+            ),
             unknownType(newUnknownType),
             unconfirmedSize(0),
             messageSize(0),
@@ -429,7 +430,7 @@ namespace OpenLogReplicator {
                         if (minus)
                             valueBuffer[valueSize++] = '-';
 
-                        if (intervalYtmFormat == INTERVAL_YTM_FORMAT_MONTHS || intervalYtmFormat == INTERVAL_YTM_FORMAT_MONTHS_STRING) {
+                        if (formats.intervalYtmFormat == INTERVAL_YTM_FORMAT_MONTHS || formats.intervalYtmFormat == INTERVAL_YTM_FORMAT_MONTHS_STRING) {
                             uint64_t val = year * 12 + month;
                             if (val == 0) {
                                 valueBuffer[valueSize++] = '0';
@@ -442,7 +443,7 @@ namespace OpenLogReplicator {
                                     valueBuffer[valueSize++] = buffer[--len];
                             }
 
-                            if (intervalYtmFormat == INTERVAL_YTM_FORMAT_MONTHS)
+                            if (formats.intervalYtmFormat == INTERVAL_YTM_FORMAT_MONTHS)
                                 columnNumber(column->name, 17, 0);
                             else
                                 columnString(column->name);
@@ -459,11 +460,11 @@ namespace OpenLogReplicator {
                                     valueBuffer[valueSize++] = buffer[--len];
                             }
 
-                            if (intervalYtmFormat == INTERVAL_YTM_FORMAT_STRING_YM_SPACE)
+                            if (formats.intervalYtmFormat == INTERVAL_YTM_FORMAT_STRING_YM_SPACE)
                                 valueBuffer[valueSize++] = ' ';
-                            else if (intervalYtmFormat == INTERVAL_YTM_FORMAT_STRING_YM_COMMA)
+                            else if (formats.intervalYtmFormat == INTERVAL_YTM_FORMAT_STRING_YM_COMMA)
                                 valueBuffer[valueSize++] = ',';
-                            else if (intervalYtmFormat == INTERVAL_YTM_FORMAT_STRING_YM_DASH)
+                            else if (formats.intervalYtmFormat == INTERVAL_YTM_FORMAT_STRING_YM_DASH)
                                 valueBuffer[valueSize++] = '-';
 
                             if (month >= 10) {
@@ -534,8 +535,8 @@ namespace OpenLogReplicator {
                         if (minus)
                             valueBuffer[valueSize++] = '-';
 
-                        if (intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_SPACE || intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_COMMA ||
-                            intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_DASH) {
+                        if (formats.intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_SPACE || formats.intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_COMMA ||
+                            formats.intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_DASH) {
 
                             val = day;
                             if (day == 0) {
@@ -549,11 +550,11 @@ namespace OpenLogReplicator {
                                     valueBuffer[valueSize++] = buffer[--len];
                             }
 
-                            if (intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_SPACE)
+                            if (formats.intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_SPACE)
                                 valueBuffer[valueSize++] = ' ';
-                            else if (intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_COMMA)
+                            else if (formats.intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_COMMA)
                                 valueBuffer[valueSize++] = ',';
-                            else if (intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_DASH)
+                            else if (formats.intervalDtsFormat == INTERVAL_DTS_FORMAT_ISO8601_DASH)
                                 valueBuffer[valueSize++] = '-';
 
                             valueBuffer[valueSize++] = Ctx::map10(hour / 10);
@@ -574,7 +575,7 @@ namespace OpenLogReplicator {
 
                             columnString(column->name);
                         } else {
-                            switch (intervalDtsFormat) {
+                            switch (formats.intervalDtsFormat) {
                                 case INTERVAL_DTS_FORMAT_UNIX_NANO:
                                 case INTERVAL_DTS_FORMAT_UNIX_NANO_STRING:
                                     val = (((day * 24 + hour) * 60 + minute) * 60 + second) * 1000000000 + us;
@@ -606,7 +607,7 @@ namespace OpenLogReplicator {
                                     valueBuffer[valueSize++] = buffer[--len];
                             }
 
-                            switch (intervalDtsFormat) {
+                            switch (formats.intervalDtsFormat) {
                                 case INTERVAL_DTS_FORMAT_UNIX_NANO:
                                 case INTERVAL_DTS_FORMAT_UNIX_MICRO:
                                 case INTERVAL_DTS_FORMAT_UNIX_MILLI:
@@ -749,7 +750,7 @@ namespace OpenLogReplicator {
         typeSize fieldSize = 0;
         typeSize colSize;
         OracleTable* table = metadata->schema->checkTableDict(redoLogRecord1->obj);
-        if ((scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
+        if ((formats.scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
             scn = commitScn;
 
         while (fieldNum < redoLogRecord2->rowData)
@@ -790,7 +791,7 @@ namespace OpenLogReplicator {
                     }
                 }
 
-                if (colSize > 0 || columnFormat >= COLUMN_FORMAT_FULL_INS_DEC || table == nullptr || table->columns[i]->numPk > 0)
+                if (colSize > 0 || formats.columnFormat >= COLUMN_FORMAT_FULL_INS_DEC || table == nullptr || table->columns[i]->numPk > 0)
                     valueSet(VALUE_AFTER, i, redoLogRecord2->data() + fieldPos + pos, colSize, 0, dump);
                 pos += colSize;
             }
@@ -843,7 +844,7 @@ namespace OpenLogReplicator {
         typeSize fieldSize = 0;
         typeSize colSize;
         OracleTable* table = metadata->schema->checkTableDict(redoLogRecord1->obj);
-        if ((scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
+        if ((formats.scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
             scn = commitScn;
 
         while (fieldNum < redoLogRecord1->rowData)
@@ -884,7 +885,7 @@ namespace OpenLogReplicator {
                     }
                 }
 
-                if (colSize > 0 || columnFormat >= COLUMN_FORMAT_FULL_INS_DEC || table == nullptr || table->columns[i]->numPk > 0)
+                if (colSize > 0 || formats.columnFormat >= COLUMN_FORMAT_FULL_INS_DEC || table == nullptr || table->columns[i]->numPk > 0)
                     valueSet(VALUE_BEFORE, i, redoLogRecord1->data() + fieldPos + pos, colSize, 0, dump);
                 pos += colSize;
             }
@@ -944,7 +945,7 @@ namespace OpenLogReplicator {
         const RedoLogRecord* redoLogRecord2 = *it2;
 
         OracleTable* table = metadata->schema->checkTableDict(redoLogRecord1->obj);
-        if ((scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
+        if ((formats.scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
             scn = commitScn;
 
         if (type == TRANSACTION_INSERT) {
@@ -1482,7 +1483,7 @@ namespace OpenLogReplicator {
                                 }
                             }
 
-                            if (columnFormat < COLUMN_FORMAT_FULL_UPD) {
+                            if (formats.columnFormat < COLUMN_FORMAT_FULL_UPD) {
                                 if (table->columns[column]->numPk == 0) {
                                     // Remove unchanged column values - only for tables with a defined primary key
                                     if (values[column][VALUE_BEFORE] != nullptr && sizes[column][VALUE_BEFORE] == sizes[column][VALUE_AFTER] &&
@@ -1580,7 +1581,7 @@ namespace OpenLogReplicator {
         } else if (type == TRANSACTION_INSERT) {
             if (table != nullptr && !compressedAfter) {
                 // Assume null values for all missing columns
-                if (columnFormat >= COLUMN_FORMAT_FULL_INS_DEC) {
+                if (formats.columnFormat >= COLUMN_FORMAT_FULL_INS_DEC) {
                     auto maxCol = static_cast<typeCol>(table->columns.size());
                     for (typeCol column = 0; column < maxCol; ++column) {
                         uint64_t base = column >> 6;
@@ -1663,7 +1664,7 @@ namespace OpenLogReplicator {
         } else if (type == TRANSACTION_DELETE) {
             if (table != nullptr && !compressedBefore) {
                 // Assume null values for all missing columns
-                if (columnFormat >= COLUMN_FORMAT_FULL_INS_DEC) {
+                if (formats.columnFormat >= COLUMN_FORMAT_FULL_INS_DEC) {
                     auto maxCol = static_cast<typeCol>(table->columns.size());
                     for (typeCol column = 0; column < maxCol; ++column) {
                         uint64_t base = column >> 6;
@@ -1749,7 +1750,7 @@ namespace OpenLogReplicator {
         typeField fieldNum = 0;
         typeSize fieldSize = 0;
         const OracleTable* table = metadata->schema->checkTableDict(redoLogRecord1->obj);
-        if ((scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
+        if ((formats.scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
             scn = commitScn;
 
         RedoLogRecord::nextField(ctx, redoLogRecord1, fieldNum, fieldPos, fieldSize, 0x000009);

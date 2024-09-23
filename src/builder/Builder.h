@@ -75,6 +75,25 @@ namespace OpenLogReplicator {
         uint16_t flags;
     };
 
+    struct BuilderSettings {
+        uint64_t dbFormat;
+        uint64_t attributesFormat;
+        uint64_t intervalDtsFormat;
+        uint64_t intervalYtmFormat;
+        uint64_t messageFormat;
+        uint64_t ridFormat;
+        uint64_t xidFormat;
+        uint64_t timestampFormat;
+        uint64_t timestampTzFormat;
+        uint64_t timestampAll;
+        uint64_t charFormat;
+        uint64_t scnFormat;
+        uint64_t scnAll;
+        uint64_t unknownFormat;
+        uint64_t schemaFormat;
+        uint64_t columnFormat;
+    };
+
     class Builder {
     public:
         static constexpr uint64_t OUTPUT_BUFFER_DATA_SIZE = Ctx::MEMORY_CHUNK_SIZE - sizeof(struct BuilderQueue);
@@ -106,22 +125,7 @@ namespace OpenLogReplicator {
         Metadata* metadata;
         BuilderMsg* msg;
 
-        uint64_t dbFormat;
-        uint64_t attributesFormat;
-        uint64_t intervalDtsFormat;
-        uint64_t intervalYtmFormat;
-        uint64_t messageFormat;
-        uint64_t ridFormat;
-        uint64_t xidFormat;
-        uint64_t timestampFormat;
-        uint64_t timestampTzFormat;
-        uint64_t timestampAll;
-        uint64_t charFormat;
-        uint64_t scnFormat;
-        uint64_t scnAll;
-        uint64_t unknownFormat;
-        uint64_t schemaFormat;
-        uint64_t columnFormat;
+        BuilderSettings formats;
         uint64_t unknownType;
         uint64_t unconfirmedSize;
         uint64_t messageSize;
@@ -279,7 +283,7 @@ namespace OpenLogReplicator {
         inline void builderBegin(typeScn scn, typeSeq sequence, typeObj obj, uint16_t flags) {
             messageSize = 0;
             messagePosition = 0;
-            if ((scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
+            if ((formats.scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
                 scn = commitScn;
 
             if (unlikely(lastBuilderQueue->size + messagePosition + sizeof(struct BuilderMsg) >= OUTPUT_BUFFER_DATA_SIZE))
@@ -355,7 +359,7 @@ namespace OpenLogReplicator {
             valueBuffer[0] = '?';
             valueSize = 1;
             columnString(columnName);
-            if (unlikely(unknownFormat == UNKNOWN_FORMAT_DUMP)) {
+            if (unlikely(formats.unknownFormat == UNKNOWN_FORMAT_DUMP)) {
                 std::ostringstream ss;
                 for (uint32_t j = 0; j < size; ++j)
                     ss << " " << std::hex << std::setfill('0') << std::setw(2) << (static_cast<uint64_t>(data[j]));
@@ -1042,7 +1046,7 @@ namespace OpenLogReplicator {
         inline void parseString(const uint8_t* data, uint64_t size, uint64_t charsetId, uint64_t offset, bool appendData, bool hasPrev, bool hasNext,
                          bool isSystem) {
             const CharacterSet* characterSet = locales->characterMap[charsetId];
-            if (unlikely(characterSet == nullptr && (charFormat & CHAR_FORMAT_NOMAPPING) == 0))
+            if (unlikely(characterSet == nullptr && (formats.charFormat & CHAR_FORMAT_NOMAPPING) == 0))
                 throw RedoLogException(50010, "can't find character set map for id = " + std::to_string(charsetId) + " at offset: " +
                                               std::to_string(offset));
             if (!appendData)
@@ -1082,10 +1086,10 @@ namespace OpenLogReplicator {
 
                 typeUnicode unicodeCharacter;
 
-                if ((charFormat & CHAR_FORMAT_NOMAPPING) == 0) {
+                if ((formats.charFormat & CHAR_FORMAT_NOMAPPING) == 0) {
                     unicodeCharacter = characterSet->decode(ctx, lastXid, parseData, parseSize);
 
-                    if ((charFormat & CHAR_FORMAT_HEX) == 0 || isSystem) {
+                    if ((formats.charFormat & CHAR_FORMAT_HEX) == 0 || isSystem) {
                         if (unicodeCharacter <= 0x7F) {
                             // 0xxxxxxx
                             valueBufferAppend(unicodeCharacter);
@@ -1142,7 +1146,7 @@ namespace OpenLogReplicator {
                     unicodeCharacter = *parseData++;
                     --parseSize;
 
-                    if ((charFormat & CHAR_FORMAT_HEX) == 0 || isSystem) {
+                    if ((formats.charFormat & CHAR_FORMAT_HEX) == 0 || isSystem) {
                         valueBufferAppend(unicodeCharacter);
                     } else {
                         valueBufferAppendHex(unicodeCharacter, offset);
@@ -1320,10 +1324,7 @@ namespace OpenLogReplicator {
         typeScn lwnScn;
         typeIdx lwnIdx;
 
-        Builder(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, uint64_t newDbFormat, uint64_t newAttributesFormat, uint64_t newIntervalDtsFormat,
-                uint64_t newIntervalYtmFormat, uint64_t newMessageFormat, uint64_t newRidFormat, uint64_t newXidFormat, uint64_t newTimestampFormat,
-                uint64_t newTimestampTzFormat, uint64_t newTimestampAll, uint64_t newCharFormat, uint64_t newScnFormat, uint64_t newScnAll,
-                uint64_t newUnknownFormat, uint64_t newSchemaFormat, uint64_t newColumnFormat, uint64_t newUnknownType, uint64_t newFlushBuffer);
+        Builder(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, BuilderSettings newFormats, uint64_t newUnknownType, uint64_t newFlushBuffer);
         virtual ~Builder();
 
         [[nodiscard]] uint64_t builderSize() const;
@@ -1338,7 +1339,7 @@ namespace OpenLogReplicator {
                         std::deque<const RedoLogRecord*>& redo2, uint64_t type, bool system, bool schema, bool dump);
         void processDdlHeader(typeScn scn, typeSeq sequence, time_t timestamp, const RedoLogRecord* redoLogRecord1);
         virtual void initialize();
-        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp) = 0;
+        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp, bool rollback = false) = 0;
         virtual void processCheckpoint(typeScn scn, typeSeq sequence, time_t timestamp, uint64_t offset, bool redo) = 0;
         void releaseBuffers(uint64_t maxId);
         void sleepForWriterWork(uint64_t queueSize, uint64_t nanoseconds);

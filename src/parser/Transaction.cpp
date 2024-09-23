@@ -195,7 +195,7 @@ namespace OpenLogReplicator {
         std::unique_lock<std::mutex> lckTransaction(metadata->mtxTransaction);
         std::unique_lock<std::mutex> lckSchema(metadata->mtxSchema, std::defer_lock);
 
-        if (opCodes == 0 || rollback)
+        if (opCodes == 0 || (metadata->ctx->skipRollback == 1 && rollback))
             return;
         if (unlikely(metadata->ctx->trace & Ctx::TRACE_TRANSACTION))
             metadata->ctx->logTrace(Ctx::TRACE_TRANSACTION, toString());
@@ -497,10 +497,26 @@ namespace OpenLogReplicator {
                                                   redoLogRecord1);
                         opFlush = true;
                         break;
-
+                    
+                    case 0x0B020506:
+                        // Rollback insert row piece
+                    case 0x0B02050B:
+                        // Rollback insert row piece
+                    case 0x0B030506:
+                        // Rollback delete row piece
+                    case 0x0B050506:
+                        // Rollback update row piece
+                    case 0x0B05050B:
+                        // Rollback update row piece
+                        // builder->processRollback(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
+                        opFlush = true;
+                        break;
+                    
                     default:
                         // Should not happen
-                        throw RedoLogException(50057, "unknown op code " + std::to_string(op) + ", offset: " +
+                        std::stringstream sstream;
+                        sstream << std::hex << op;
+                        throw RedoLogException(50057, "unknown op code " + sstream.str() + ", offset: " +
                                                       std::to_string(redoLogRecord1->dataOffset));
                 }
 
@@ -521,7 +537,7 @@ namespace OpenLogReplicator {
                         builder->systemTransaction = new SystemTransaction(builder, metadata);
                     }
 
-                    builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
+                    builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone), rollback);
                     builder->processBegin(xid, commitScn, lwnScn, &attributes);
                 }
 
@@ -564,7 +580,7 @@ namespace OpenLogReplicator {
             // Unlock schema
             lckSchema.unlock();
         }
-        builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
+        builder->processCommit(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone), rollback);
     }
 
     void Transaction::purge(TransactionBuffer* transactionBuffer) {

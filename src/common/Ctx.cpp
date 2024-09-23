@@ -108,6 +108,7 @@ namespace OpenLogReplicator {
             logLevel(3),
             trace(0),
             flags(0),
+            skipRollback(1),
             disableChecks(0),
             hardShutdown(false),
             softShutdown(false),

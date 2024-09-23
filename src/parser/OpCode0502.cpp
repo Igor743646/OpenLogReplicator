@@ -105,7 +105,8 @@ namespace OpenLogReplicator {
                             " sqn: 0x" << std::setfill('0') << std::setw(8) << std::hex << redoLogRecord->xid.sqn() <<
                             " flg: 0x" << std::setfill('0') << std::setw(4) << redoLogRecord->flg <<
                             " siz: " << std::dec << siz <<
-                            " fbi: " << std::dec << static_cast<uint64_t>(fbi) << '\n';
+                            " fbi: " << std::dec << static_cast<uint64_t>(fbi) << 
+                            " xid: " << redoLogRecord->xid.toString() << '\n';
             /*if (ctx->version < RedoLogRecord::REDO_VERSION_12_1 || redoLogRecord->conId == 0)
                 *ctx->dumpStream << "           " <<
                         " uba: " << PRINTUBA(uba) << "   " <<

@@ -63,7 +63,8 @@ namespace OpenLogReplicator {
                             " sqn: 0x" << std::setfill('0') << std::setw(8) << std::hex << redoLogRecord->xid.sqn() <<
                             " srt: " << std::dec << srt <<
                             " sta: " << std::dec << sta <<
-                            " flg: 0x" << std::hex << redoLogRecord->flg << " ";
+                            " flg: 0x" << std::hex << redoLogRecord->flg << 
+                            " xid: " << redoLogRecord->xid.toString() << " ";
         }
     }
 
