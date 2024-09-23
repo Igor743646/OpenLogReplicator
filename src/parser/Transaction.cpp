@@ -504,10 +504,20 @@ namespace OpenLogReplicator {
                         // Rollback insert row piece
                     case 0x0B030506:
                         // Rollback delete row piece
+                    case 0x0B03050B:
+                        // Rollback delete row piece
                     case 0x0B050506:
                         // Rollback update row piece
                     case 0x0B05050B:
                         // Rollback update row piece
+                    case 0x0B0C0506:
+                        // Rollback delete multiply rows
+                    case 0x0B0C050B:
+                        // Rollback delete multiply rows
+                    case 0x0B0B0506:
+                        // Rollback insert multiply rows
+                    case 0x0B0B050B:
+                        // Rollback insert multiply rows
                         // builder->processRollback(commitScn, commitSequence, commitTimestamp.toEpoch(metadata->ctx->hostTimezone));
                         opFlush = true;
                         break;

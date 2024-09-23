@@ -328,101 +328,110 @@ namespace OpenLogReplicator {
         }
 
         inline uint16_t read16Little(const uint8_t* buf) const {
-            struct { uint16_t f1 : 8, f2 : 8; }
-            res{ buf[0] , buf[1] };
-            return *reinterpret_cast<uint16_t*>(&res);
+            return static_cast<uint16_t>(buf[0]) | (static_cast<uint16_t>(buf[1]) << 8);
         }
 
         inline uint16_t read16Big(const uint8_t* buf) const {
-            struct { uint16_t f1 : 8, f2 : 8; }
-            res{ buf[1] , buf[0] };
-            return *reinterpret_cast<uint16_t*>(&res);
+            return (static_cast<uint16_t>(buf[0]) << 8) | static_cast<uint16_t>(buf[1]);
         }
 
         inline uint32_t read24Big(const uint8_t* buf) const {
-            struct { uint32_t f1 : 8, f2 : 8, f3 : 8, f4 : 8; }
-            res{ buf[2], buf[1] , buf[0], 0 };
-            return *reinterpret_cast<uint32_t*>(&res);
+            return (static_cast<uint32_t>(buf[0]) << 16) |
+                   (static_cast<uint32_t>(buf[1]) << 8) | static_cast<uint32_t>(buf[2]);
         }
 
         inline uint32_t read32Little(const uint8_t* buf) const {
-            struct { uint32_t f1 : 8, f2 : 8, f3 : 8, f4 : 8; } 
-            res{ buf[0] , buf[1], buf[2], buf[3] };
-            return *reinterpret_cast<uint32_t*>(&res);
+            return static_cast<uint32_t>(buf[0]) | (static_cast<uint32_t>(buf[1]) << 8) |
+                   (static_cast<uint32_t>(buf[2]) << 16) | (static_cast<uint32_t>(buf[3]) << 24);
         }
 
         inline uint32_t read32Big(const uint8_t* buf) const {
-            struct { uint32_t f1 : 8, f2 : 8, f3 : 8, f4 : 8; } 
-            res{ buf[3] , buf[2], buf[1], buf[0] };
-            return *reinterpret_cast<uint32_t*>(&res);
+            return (static_cast<uint32_t>(buf[0]) << 24) | (static_cast<uint32_t>(buf[1]) << 16) |
+                   (static_cast<uint32_t>(buf[2]) << 8) | static_cast<uint32_t>(buf[3]);
         }
 
         inline uint64_t read56Little(const uint8_t* buf) const {
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; }
-            res{ buf[0], buf[1], buf[2], buf[3] , buf[4], buf[5], buf[6], 0 };
-            return *reinterpret_cast<uint64_t*>(&res);
+            return static_cast<uint64_t>(buf[0]) | (static_cast<uint64_t>(buf[1]) << 8) |
+                   (static_cast<uint64_t>(buf[2]) << 16) | (static_cast<uint64_t>(buf[3]) << 24) |
+                   (static_cast<uint64_t>(buf[4]) << 32) | (static_cast<uint64_t>(buf[5]) << 40) |
+                   (static_cast<uint64_t>(buf[6]) << 48);
         }
 
         inline uint64_t read56Big(const uint8_t* buf) const {
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; }
-            res{ buf[3], buf[2], buf[1], buf[0] , buf[5], buf[4], buf[6], 0 };
-            return *reinterpret_cast<uint64_t*>(&res);
+            return (static_cast<uint64_t>(buf[0]) << 24) | (static_cast<uint64_t>(buf[1]) << 16) |
+                   (static_cast<uint64_t>(buf[2]) << 8) | (static_cast<uint64_t>(buf[3])) |
+                   (static_cast<uint64_t>(buf[4]) << 40) | (static_cast<uint64_t>(buf[5]) << 32) |
+                   (static_cast<uint64_t>(buf[6]) << 48);
         }
 
         inline uint64_t read64Little(const uint8_t* buf) const {
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; }
-            res{ buf[0], buf[1], buf[2], buf[3] , buf[4], buf[5], buf[6], buf[7] };
-            return *reinterpret_cast<uint64_t*>(&res);
+            return static_cast<uint64_t>(buf[0]) | (static_cast<uint64_t>(buf[1]) << 8) |
+                   (static_cast<uint64_t>(buf[2]) << 16) | (static_cast<uint64_t>(buf[3]) << 24) |
+                   (static_cast<uint64_t>(buf[4]) << 32) | (static_cast<uint64_t>(buf[5]) << 40) |
+                   (static_cast<uint64_t>(buf[6]) << 48) | (static_cast<uint64_t>(buf[7]) << 56);
         }
 
         inline uint64_t read64Big(const uint8_t* buf) const {
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; }
-            res{ buf[7], buf[6], buf[5], buf[4] , buf[3], buf[2], buf[1], buf[0] };
-            return *reinterpret_cast<uint64_t*>(&res);
+            return (static_cast<uint64_t>(buf[0]) << 56) | (static_cast<uint64_t>(buf[1]) << 48) |
+                   (static_cast<uint64_t>(buf[2]) << 40) | (static_cast<uint64_t>(buf[3]) << 32) |
+                   (static_cast<uint64_t>(buf[4]) << 24) | (static_cast<uint64_t>(buf[5]) << 16) |
+                   (static_cast<uint64_t>(buf[6]) << 8) | static_cast<uint64_t>(buf[7]);
         }
 
         inline typeScn readScnLittle(const uint8_t* buf) const {
             if (buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF && buf[3] == 0xFF && buf[4] == 0xFF && buf[5] == 0xFF)
                 return ZERO_SCN;
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; } res;
             if ((buf[5] & 0x80) == 0x80)
-                res = { buf[0], buf[1], buf[2], buf[3] , buf[6], buf[7], buf[4], buf[5] & 0x7Fu };
+                return static_cast<uint64_t>(buf[0]) | (static_cast<uint64_t>(buf[1]) << 8) |
+                       (static_cast<uint64_t>(buf[2]) << 16) | (static_cast<uint64_t>(buf[3]) << 24) |
+                       (static_cast<uint64_t>(buf[6]) << 32) | (static_cast<uint64_t>(buf[7]) << 40) |
+                       (static_cast<uint64_t>(buf[4]) << 48) | (static_cast<uint64_t>(buf[5] & 0x7F) << 56);
             else
-                res = { buf[0], buf[1], buf[2], buf[3] , buf[4], buf[5], 0, 0 };
-            return *reinterpret_cast<typeScn*>(&res);
+                return static_cast<uint64_t>(buf[0]) | (static_cast<uint64_t>(buf[1]) << 8) |
+                       (static_cast<uint64_t>(buf[2]) << 16) | (static_cast<uint64_t>(buf[3]) << 24) |
+                       (static_cast<uint64_t>(buf[4]) << 32) | (static_cast<uint64_t>(buf[5]) << 40);
         }
 
         inline typeScn readScnBig(const uint8_t* buf) const {
             if (buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF && buf[3] == 0xFF && buf[4] == 0xFF && buf[5] == 0xFF)
                 return ZERO_SCN;
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; } res;
             if ((buf[4] & 0x80) == 0x80)
-                res = { buf[3], buf[2], buf[1], buf[0] , buf[7], buf[6], buf[5], buf[4] & 0x7Fu };
+                return static_cast<uint64_t>(buf[3]) | (static_cast<uint64_t>(buf[2]) << 8) |
+                       (static_cast<uint64_t>(buf[1]) << 16) | (static_cast<uint64_t>(buf[0]) << 24) |
+                       (static_cast<uint64_t>(buf[7]) << 32) | (static_cast<uint64_t>(buf[6]) << 40) |
+                       (static_cast<uint64_t>(buf[5]) << 48) | (static_cast<uint64_t>(buf[4] & 0x7F) << 56);
             else
-                res = { buf[3], buf[2], buf[1], buf[0] , buf[5], buf[4], 0, 0 };
-            return *reinterpret_cast<typeScn*>(&res);
+                return static_cast<uint64_t>(buf[3]) | (static_cast<uint64_t>(buf[2]) << 8) |
+                       (static_cast<uint64_t>(buf[1]) << 16) | (static_cast<uint64_t>(buf[0]) << 24) |
+                       (static_cast<uint64_t>(buf[5]) << 32) | (static_cast<uint64_t>(buf[4]) << 40);
         }
 
         inline typeScn readScnRLittle(const uint8_t* buf) const {
             if (buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF && buf[3] == 0xFF && buf[4] == 0xFF && buf[5] == 0xFF)
                 return ZERO_SCN;
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; } res;
             if ((buf[1] & 0x80) == 0x80)
-                res = { buf[2], buf[3], buf[4], buf[5] , 0, 0, buf[0], buf[1] & 0x7Fu };
+                return static_cast<uint64_t>(buf[2]) | (static_cast<uint64_t>(buf[3]) << 8) |
+                       (static_cast<uint64_t>(buf[4]) << 16) | (static_cast<uint64_t>(buf[5]) << 24) |
+                       // (static_cast<uint64_t>(buf[6]) << 32) | (static_cast<uint64_t>(buf[7]) << 40) |
+                       (static_cast<uint64_t>(buf[0]) << 48) | (static_cast<uint64_t>(buf[1] & 0x7F) << 56);
             else
-                res = { buf[2], buf[3], buf[4], buf[5], buf[0], buf[1], 0, 0 };
-            return *reinterpret_cast<typeScn*>(&res);
+                return static_cast<uint64_t>(buf[2]) | (static_cast<uint64_t>(buf[3]) << 8) |
+                       (static_cast<uint64_t>(buf[4]) << 16) | (static_cast<uint64_t>(buf[5]) << 24) |
+                       (static_cast<uint64_t>(buf[0]) << 32) | (static_cast<uint64_t>(buf[1]) << 40);
         }
 
         inline typeScn readScnRBig(const uint8_t* buf) const {
             if (buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF && buf[3] == 0xFF && buf[4] == 0xFF && buf[5] == 0xFF)
                 return ZERO_SCN;
-            struct { uint64_t f1 : 8, f2 : 8, f3 : 8, f4 : 8, f5 : 8, f6 : 8, f7 : 8, f8 : 8; } res;
             if ((buf[0] & 0x80) == 0x80)
-                res = { buf[5], buf[4], buf[3], buf[2] , 0, 0, buf[1], buf[0] & 0x7Fu };
+                return static_cast<uint64_t>(buf[5]) | (static_cast<uint64_t>(buf[4]) << 8) |
+                       (static_cast<uint64_t>(buf[3]) << 16) | (static_cast<uint64_t>(buf[2]) << 24) |
+                       // (static_cast<uint64_t>(buf[7]) << 32) | (static_cast<uint64_t>(buf[6]) << 40) |
+                       (static_cast<uint64_t>(buf[1]) << 48) | (static_cast<uint64_t>(buf[0] & 0x7F) << 56);
             else
-                res = { buf[5], buf[4], buf[3], buf[2] , buf[1], buf[0], 0, 0 };
-            return *reinterpret_cast<typeScn*>(&res);
+                return static_cast<uint64_t>(buf[5]) | (static_cast<uint64_t>(buf[4]) << 8) |
+                       (static_cast<uint64_t>(buf[3]) << 16) | (static_cast<uint64_t>(buf[2]) << 24) |
+                       (static_cast<uint64_t>(buf[1]) << 32) | (static_cast<uint64_t>(buf[0]) << 40);
         }
 
         inline void write16Little(uint8_t* buf, uint16_t val) const {
