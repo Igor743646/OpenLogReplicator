@@ -1313,10 +1313,6 @@ namespace OpenLogReplicator {
         static constexpr uint64_t VALUE_BEFORE_SUPP = 2;
         static constexpr uint64_t VALUE_AFTER_SUPP = 3;
 
-        static constexpr uint64_t XID_FORMAT_TEXT_HEX = 0;
-        static constexpr uint64_t XID_FORMAT_TEXT_DEC = 1;
-        static constexpr uint64_t XID_FORMAT_NUMERIC = 2;
-
         SystemTransaction* systemTransaction;
         uint64_t buffersAllocated;
         BuilderQueue* firstBuilderQueue;

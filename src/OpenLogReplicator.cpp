@@ -561,12 +561,12 @@ namespace OpenLogReplicator {
                                                         ", expected: one of {0, 1}");
             }
 
-            builderFormats.xidFormat = Builder::XID_FORMAT_TEXT_HEX;
+            builderFormats.xidFormat = typeXid::XID_FORMAT_TEXT_HEX;
             if (formatJson.HasMember("xid")) {
                 builderFormats.xidFormat = Ctx::getJsonFieldU64(configFileName, formatJson, "xid");
-                if (builderFormats.xidFormat > 2)
+                if (builderFormats.xidFormat > 3)
                     throw ConfigurationException(30001, "bad JSON, invalid \"xid\" value: " + std::to_string(builderFormats.xidFormat) +
-                                                        ", expected: one of {0 .. 2}");
+                                                        ", expected: one of {0 .. 3}");
             }
 
             builderFormats.timestampFormat = Builder::TIMESTAMP_FORMAT_UNIX_NANO;

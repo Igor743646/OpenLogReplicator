@@ -246,25 +246,13 @@ namespace OpenLogReplicator {
                 else
                     hasPreviousValue = true;
 
-                if (formats.xidFormat == XID_FORMAT_TEXT_HEX) {
-                    append(R"("xid":"0x)", sizeof(R"("xid":"0x)") - 1);
-                    appendHex4(lastXid.usn());
-                    append('.');
-                    appendHex3(lastXid.slt());
-                    append('.');
-                    appendHex8(lastXid.sqn());
-                    append('"');
-                } else if (formats.xidFormat == XID_FORMAT_TEXT_DEC) {
-                    append(R"("xid":")", sizeof(R"("xid":")") - 1);
-                    appendDec(lastXid.usn());
-                    append('.');
-                    appendDec(lastXid.slt());
-                    append('.');
-                    appendDec(lastXid.sqn());
-                    append('"');
-                } else if (formats.xidFormat == XID_FORMAT_NUMERIC) {
+                if (formats.xidFormat == typeXid::XID_FORMAT_NUMERIC) {
                     append(R"("xidn":)", sizeof(R"("xidn":)") - 1);
-                    appendDec(lastXid.getData());
+                    append(lastXid.toString(formats.xidFormat));
+                } else {
+                    append(R"("xid":")", sizeof(R"("xid":")") - 1);
+                    append(lastXid.toString(formats.xidFormat));
+                    append('"');
                 }
             }
 

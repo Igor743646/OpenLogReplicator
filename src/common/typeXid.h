@@ -42,6 +42,11 @@ namespace OpenLogReplicator {
     class typeXid final {
         uint64_t data;
     public:
+        static constexpr uint64_t XID_FORMAT_TEXT_HEX = 0;
+        static constexpr uint64_t XID_FORMAT_TEXT_DEC = 1;
+        static constexpr uint64_t XID_FORMAT_NUMERIC = 2;
+        static constexpr uint64_t XID_FORMAT_TEXT_ONLY_HEX = 3;
+
         typeXid() : data(0) {
         };
 
@@ -151,14 +156,25 @@ namespace OpenLogReplicator {
             return *this;
         }
 
-        uint64_t toUint() {
+        uint64_t toUint() const {
             return data;
         }
 
-        std::string toString() const {
+        std::string toString(uint64_t format = 0) const {
             std::ostringstream ss;
-            ss << "0x" << std::setfill('0') << std::setw(4) << std::hex << (data >> 48) << "." << std::setw(3) <<
-               ((data >> 32) & 0xFFFF) << "." << std::setw(8) << (data & 0xFFFFFFFF);
+
+            if (format == XID_FORMAT_TEXT_HEX) {
+                ss << "0x" << std::setfill('0') << std::setw(4) << std::hex << usn() << "." << std::setw(3) <<
+                        slt() << "." << std::setw(8) << sqn();
+            } else if (format == XID_FORMAT_TEXT_DEC) {
+                ss << usn() << "." << slt() << "." << sqn();
+            } else if (format == XID_FORMAT_NUMERIC) {
+                ss << getData();
+            } else if (format == XID_FORMAT_TEXT_ONLY_HEX) {
+                ss << std::hex << std::setfill('0') << std::setw(4) << __builtin_bswap16(usn()) << std::setw(4) <<
+                        __builtin_bswap16(slt()) << std::setw(8) << __builtin_bswap32(sqn());
+            }
+
             return ss.str();
         }
     };
