@@ -78,12 +78,12 @@ namespace OpenLogReplicator {
         }
 
         inline void appendRowid(typeDataObj dataObj, typeDba bdba, typeSlot slot) {
-            if ((messageFormat & MESSAGE_FORMAT_ADD_SEQUENCES) != 0)
+            if ((formats.messageFormat & MESSAGE_FORMAT_ADD_SEQUENCES) != 0)
                 payloadPB->set_num(num);
 
-            if (ridFormat == RID_FORMAT_SKIP)
+            if (formats.ridFormat == RID_FORMAT_SKIP)
                 return;
-            else if (ridFormat == RID_FORMAT_TEXT) {
+            else if (formats.ridFormat == RID_FORMAT_TEXT) {
                 typeRowId rowId(dataObj, bdba, slot);
                 char str[19];
                 rowId.toString(str);
@@ -93,8 +93,8 @@ namespace OpenLogReplicator {
 
         inline void appendHeader(typeScn scn, time_t timestamp, bool first, bool showDb, bool showXid) {
             redoResponsePB->set_code(pb::ResponseCode::PAYLOAD);
-            if (first || (scnAll & SCN_ALL_PAYLOADS) != 0) {
-                if ((scnFormat & SCN_FORMAT_TEXT_HEX) != 0) {
+            if (first || (formats.scnAll & SCN_ALL_PAYLOADS) != 0) {
+                if ((formats.scnFormat & SCN_FORMAT_TEXT_HEX) != 0) {
                     char buf[17];
                     numToString(scn, buf, 16);
                     redoResponsePB->set_scns(buf);
@@ -103,9 +103,9 @@ namespace OpenLogReplicator {
                 }
             }
 
-            if (first || (timestampAll & TIMESTAMP_ALL_PAYLOADS) != 0) {
+            if (first || (formats.timestampAll & TIMESTAMP_ALL_PAYLOADS) != 0) {
                 std::string str;
-                switch (timestampFormat) {
+                switch (formats.timestampFormat) {
                     case TIMESTAMP_FORMAT_UNIX_NANO:
                         redoResponsePB->set_tm(timestamp * 1000000000L);
                         break;
@@ -154,7 +154,7 @@ namespace OpenLogReplicator {
             redoResponsePB->set_c_idx(lwnIdx);
 
             if (showXid) {
-                if (xidFormat == XID_FORMAT_TEXT_HEX) {
+                if (formats.xidFormat == typeXid::XID_FORMAT_TEXT_HEX) {
                     std::ostringstream ss;
                     ss << "0x";
                     ss << std::setfill('0') << std::setw(4) << std::hex << static_cast<uint64_t>(lastXid.usn());
@@ -163,7 +163,7 @@ namespace OpenLogReplicator {
                     ss << '.';
                     ss << std::setfill('0') << std::setw(8) << std::hex << static_cast<uint64_t>(lastXid.sqn());
                     redoResponsePB->set_xid(ss.str());
-                } else if (xidFormat == XID_FORMAT_TEXT_DEC) {
+                } else if (formats.xidFormat == typeXid::XID_FORMAT_TEXT_DEC) {
                     std::ostringstream ss;
                     ss << static_cast<uint64_t>(lastXid.usn());
                     ss << '.';
@@ -171,7 +171,7 @@ namespace OpenLogReplicator {
                     ss << '.';
                     ss << static_cast<uint64_t>(lastXid.sqn());
                     redoResponsePB->set_xid(ss.str());
-                } else if (xidFormat == XID_FORMAT_NUMERIC) {
+                } else if (formats.xidFormat == typeXid::XID_FORMAT_NUMERIC) {
                     redoResponsePB->set_xidn(lastXid.getData());
                 }
             }
@@ -193,7 +193,7 @@ namespace OpenLogReplicator {
                     schemaPB->set_name(tableName);
                 }
 
-                if ((schemaFormat & SCHEMA_FORMAT_OBJ) != 0)
+                if ((formats.schemaFormat & SCHEMA_FORMAT_OBJ) != 0)
                     schemaPB->set_obj(obj);
 
                 return;
@@ -202,11 +202,11 @@ namespace OpenLogReplicator {
             schemaPB->set_owner(table->owner);
             schemaPB->set_name(table->name);
 
-            if ((schemaFormat & SCHEMA_FORMAT_OBJ) != 0)
+            if ((formats.schemaFormat & SCHEMA_FORMAT_OBJ) != 0)
                 schemaPB->set_obj(obj);
 
-            if ((schemaFormat & SCHEMA_FORMAT_FULL) != 0) {
-                if ((schemaFormat & SCHEMA_FORMAT_REPEATED) == 0) {
+            if ((formats.schemaFormat & SCHEMA_FORMAT_FULL) != 0) {
+                if ((formats.schemaFormat & SCHEMA_FORMAT_REPEATED) == 0) {
                     if (tables.count(table) > 0)
                         return;
                     else
@@ -314,7 +314,7 @@ namespace OpenLogReplicator {
         }
 
         inline void appendAfter(LobCtx* lobCtx, const XmlCtx* xmlCtx, const OracleTable* table, uint64_t offset) {
-            if (columnFormat > 0 && table != nullptr) {
+            if (formats.columnFormat > 0 && table != nullptr) {
                 for (typeCol column = 0; column < table->maxSegCol; ++column) {
                     if (values[column][VALUE_AFTER] != nullptr) {
                         if (sizes[column][VALUE_AFTER] > 0) {
@@ -357,7 +357,7 @@ namespace OpenLogReplicator {
         }
 
         inline void appendBefore(LobCtx* lobCtx, const XmlCtx* xmlCtx, const OracleTable* table, uint64_t offset) {
-            if (columnFormat > 0 && table != nullptr) {
+            if (formats.columnFormat > 0 && table != nullptr) {
                 for (typeCol column = 0; column < table->maxSegCol; ++column) {
                     if (values[column][VALUE_BEFORE] != nullptr) {
                         if (sizes[column][VALUE_BEFORE] > 0) {
@@ -433,15 +433,12 @@ namespace OpenLogReplicator {
         void processBeginMessage(typeScn scn, typeSeq sequence, time_t timestamp) override;
 
     public:
-        BuilderProtobuf(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, uint64_t newDbFormat, uint64_t newAttributesFormat,
-                        uint64_t newIntervalDtsFormat, uint64_t newIntervalYtmFormat, uint64_t newMessageFormat, uint64_t newRidFormat, uint64_t newXidFormat,
-                        uint64_t newTimestampFormat, uint64_t newTimestampTzFormat, uint64_t newTimestampAll, uint64_t newCharFormat, uint64_t newScnFormat,
-                        uint64_t newScnAll, uint64_t newUnknownFormat, uint64_t newSchemaFormat, uint64_t newColumnFormat, uint64_t newUnknownType,
+        BuilderProtobuf(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, BuilderSettings newFormats, uint64_t newUnknownType,
                         uint64_t newFlushBuffer);
         virtual ~BuilderProtobuf() override;
 
         virtual void initialize() override;
-        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp) override;
+        virtual void processCommit(typeScn scn, typeSeq sequence, time_t timestamp, bool rollback = false) override;
         virtual void processCheckpoint(typeScn scn, typeSeq sequence, time_t timestamp, uint64_t offset, bool redo) override;
     };
 }

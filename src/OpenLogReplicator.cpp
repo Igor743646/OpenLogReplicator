@@ -661,16 +661,10 @@ namespace OpenLogReplicator {
 
             Builder* builder;
             if (strcmp("json", formatType) == 0) {
-                builder = new BuilderJson(ctx, locales, metadata, builderFormats,
-                                          unknownType, flushBuffer);
+                builder = new BuilderJson(ctx, locales, metadata, builderFormats, unknownType, flushBuffer);
             } else if (strcmp("protobuf", formatType) == 0) {
 #ifdef LINK_LIBRARY_PROTOBUF
-                builder = new BuilderProtobuf(ctx, locales, metadata, dbFormat, attributesFormat,
-                                              intervalDtsFormat, intervalYtmFormat, messageFormat,
-                                              ridFormat, xidFormat, timestampFormat,
-                                              timestampTzFormat, timestampAll, charFormat, scnFormat,
-                                              scnAll, unknownFormat, schemaFormat,
-                                              columnFormat, unknownType, flushBuffer);
+                builder = new BuilderProtobuf(ctx, locales, metadata, builderFormats, unknownType, flushBuffer);
 #else
                 throw ConfigurationException(30001, "bad JSON, invalid \"format\" value: " + std::string(formatType) +
                                              ", expected: not \"protobuf\" since the code is not compiled");

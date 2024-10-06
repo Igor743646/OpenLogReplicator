@@ -32,7 +32,7 @@ namespace OpenLogReplicator {
         struct sockaddr_storage address;
         std::string host;
         std::string port;
-        uint8_t readBuffer[READ_NETWORK_BUFFER];
+        uint8_t readBuffer[READ_NETWORK_BUFFER]; // Read Buffer
         uint64_t readBufferLen;
         struct addrinfo* res;
 

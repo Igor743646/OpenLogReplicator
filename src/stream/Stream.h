@@ -28,7 +28,7 @@ namespace OpenLogReplicator {
     class Stream {
     protected:
         Ctx* ctx;
-        std::string uri;
+        std::string uri; // "127.0.0.1:3000"
 
     public:
         static constexpr uint64_t READ_NETWORK_BUFFER = 1024;

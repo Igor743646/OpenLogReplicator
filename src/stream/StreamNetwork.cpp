@@ -57,7 +57,7 @@ namespace OpenLogReplicator {
     }
 
     void StreamNetwork::initialize() {
-        // Colon
+        // 127.0.0.1:3000 -> host=127.0.0.1 port=3000
         auto uriIt = uri.find(':');
         if (uriIt == std::string::npos)
             throw ConfigurationException(30008, "uri is missing ':' in parameter: " + uri);
@@ -93,9 +93,9 @@ namespace OpenLogReplicator {
     void StreamNetwork::initializeServer() {
         struct addrinfo hints;
         memset(reinterpret_cast<void*>(&hints), 0, sizeof hints);
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-        hints.ai_flags = AI_PASSIVE;
+        hints.ai_family = AF_UNSPEC;        // IPv4 or IPv6
+        hints.ai_socktype = SOCK_STREAM;    // TCP protocol
+        hints.ai_flags = AI_PASSIVE;        // ?
 
         if (getaddrinfo(host.c_str(), port.c_str(), &hints, &res) != 0 || res == nullptr)
             throw RuntimeException(10061, "network error, errno: " + std::to_string(errno) + ", message: " + strerror(errno) + " (3)");
