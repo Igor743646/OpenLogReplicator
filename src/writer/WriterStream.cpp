@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with OpenLogReplicator; see the file LICENSE;  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#include <google/protobuf/util/json_util.h>
 #include "../builder/Builder.h"
 #include "../common/OraProtoBuf.pb.h"
 #include "../common/exception/NetworkException.h"
@@ -66,6 +67,7 @@ namespace OpenLogReplicator {
         if (metadata->status == Metadata::STATUS_START) {
             ctx->logTrace(Ctx::TRACE_WRITER, "info, start");
             response.set_code(pb::ResponseCode::STARTING);
+            return;
         }
 
         ctx->logTrace(Ctx::TRACE_WRITER, "info, first scn: " + std::to_string(metadata->firstDataScn));
@@ -174,7 +176,7 @@ namespace OpenLogReplicator {
         }
         ctx->info(0, "client requested scn: " + std::to_string(metadata->clientScn) + paramIdx);
 
-        resetMessageQueue();
+        //resetMessageQueue();
         response.set_code(pb::ResponseCode::REPLICATE);
         ctx->info(0, "streaming to client");
         streaming = true;
@@ -203,6 +205,17 @@ namespace OpenLogReplicator {
         if (size > 0) {
             request.Clear();
             if (request.ParseFromArray(msgR, static_cast<int>(size))) {
+
+                if (unlikely(ctx->trace && Ctx::TRACE_WRITER)) {
+                    std::string json_str;
+                    google::protobuf::util::JsonPrintOptions options;
+                    options.add_whitespace = true;
+                    options.always_print_primitive_fields = true;
+                    options.preserve_proto_field_names = true;
+                    MessageToJsonString(request, &json_str, options);
+                    ctx->logTrace(Ctx::TRACE_WRITER, "request: " + json_str);
+                }
+
                 if (streaming) {
                     switch (request.code()) {
                         case pb::RequestCode::INFO:
@@ -265,6 +278,7 @@ namespace OpenLogReplicator {
     }
 
     void WriterStream::sendMessage(BuilderMsg* msg) {
+        ctx->logTrace(Ctx::TRACE_WRITER, "send msg: " + msg->ToString());
         stream->sendMessage(msg->data, msg->size);
     }
 }

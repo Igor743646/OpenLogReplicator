@@ -73,6 +73,13 @@ namespace OpenLogReplicator {
         typeObj obj;
         uint16_t pos;
         uint16_t flags;
+
+        std::string ToString() const {
+            return "id: " + std::to_string(id) + " size: " + std::to_string(size.load()) + " scn: " + std::to_string(scn) 
+                    + " lwnScn: " + std::to_string(lwnScn) + " lwnIdx: " + std::to_string(lwnIdx)
+                    + " sequence: " + std::to_string(sequence) + " obj: " + std::to_string(obj)
+                    ;
+        }
     };
 
     struct BuilderSettings {
@@ -323,6 +330,7 @@ namespace OpenLogReplicator {
                 }
                 unconfirmedSize = 0;
             }
+            ctx->logTrace(Ctx::TRACE_WRITER, "msg: " + msg->ToString());
             msg = nullptr;
         };
 

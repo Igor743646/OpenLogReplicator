@@ -68,6 +68,8 @@ namespace OpenLogReplicator {
         queue[currentQueueSize++] = msg;
         if (currentQueueSize > maxQueueSize)
             maxQueueSize = currentQueueSize;
+
+        ctx->logTrace(Ctx::TRACE_WRITER, "new message: " + msg->ToString());
     }
 
     void Writer::sortQueue() {

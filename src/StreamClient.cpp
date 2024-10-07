@@ -28,6 +28,8 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #include "common/exception/NetworkException.h"
 #include "common/exception/RuntimeException.h"
 #include "stream/StreamNetwork.h"
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
 
 #ifdef LINK_LIBRARY_ZEROMQ
 
@@ -191,7 +193,7 @@ int main(int argc, char** argv) {
 
         send(request, stream, &ctx);
         receive(response, stream, &ctx, buffer, true);
-        ctx.info(0, "- code: " + std::to_string(static_cast<uint64_t>(response.code())));
+        ctx.info(0, "- code: " + std::to_string(static_cast<uint64_t>(response.code())) + " msg: " + response.DebugString() );
 
         // Either after start or after continue, the server is expected to start streaming
         if (response.code() != OpenLogReplicator::pb::ResponseCode::REPLICATE)
@@ -250,13 +252,16 @@ int main(int argc, char** argv) {
                 cIdx = response.c_idx();
             } else {
                 buffer[length] = 0;
-                ctx.info(0, std::string("message: ") + reinterpret_cast<const char*>(buffer));
 
                 rapidjson::Document document;
                 if (document.Parse(reinterpret_cast<const char*>(buffer)).HasParseError())
                     throw OpenLogReplicator::RuntimeException(20001, "offset: " + std::to_string(document.GetErrorOffset()) +
                                                                      " - parse error: " + GetParseError_En(document.GetParseError()));
 
+                rapidjson::StringBuffer sb;
+                rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+                document.Accept(writer);
+                ctx.info(0, std::string("message: ") + sb.GetString());
                 cScn = OpenLogReplicator::Ctx::getJsonFieldU64("network", document, "c_scn");
                 cIdx = OpenLogReplicator::Ctx::getJsonFieldU64("network", document, "c_idx");
             }
