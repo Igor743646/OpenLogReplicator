@@ -80,7 +80,7 @@ namespace OpenLogReplicator {
             if (likely(!dump && (ctx->trace & Ctx::TRACE_DUMP) == 0))
                 return;
 
-            ctx->info(0, std::string(msg) + " xid: " + xid.toString() +
+            ctx->OLR_INFO(0, std::string(msg) + " xid: " + xid.toString() +
                          " OP: " + std::to_string(static_cast<uint64_t>(redoLogRecord1->opCode >> 8)) +
                          "." + std::to_string(static_cast<uint64_t>(redoLogRecord1->opCode & 0xFF)) +
                          " opc: " + std::to_string(redoLogRecord1->opc) +

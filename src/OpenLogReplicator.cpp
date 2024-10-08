@@ -131,7 +131,7 @@ namespace OpenLogReplicator {
         if (unlikely(ctx->trace & Ctx::TRACE_THREADS)) {
             std::ostringstream ss;
             ss << std::this_thread::get_id();
-            ctx->logTrace(Ctx::TRACE_THREADS, "main (" + ss.str() + ") start");
+            ctx->OLR_TRACE(Ctx::TRACE_THREADS, "main (" + ss.str() + ") start");
         }
 
         struct stat configFileStat;
@@ -223,7 +223,7 @@ namespace OpenLogReplicator {
             }
 
             const char* alias = Ctx::getJsonFieldS(configFileName, Ctx::JSON_PARAMETER_LENGTH, sourceJson, "alias");
-            ctx->info(0, "adding source: " + std::string(alias));
+            ctx->OLR_INFO(0, "adding source: " + std::string(alias));
 
             uint64_t memoryMinMb = 32;
             uint64_t memoryMaxMb = 1024;
@@ -382,24 +382,24 @@ namespace OpenLogReplicator {
 
                 if (debugJson.HasMember("stop-log-switches")) {
                     ctx->stopLogSwitches = Ctx::getJsonFieldU64(configFileName, debugJson, "stop-log-switches");
-                    ctx->info(0, "will shutdown after " + std::to_string(ctx->stopLogSwitches) + " log switches");
+                    ctx->OLR_INFO(0, "will shutdown after " + std::to_string(ctx->stopLogSwitches) + " log switches");
                 }
 
                 if (debugJson.HasMember("stop-checkpoints")) {
                     ctx->stopCheckpoints = Ctx::getJsonFieldU64(configFileName, debugJson, "stop-checkpoints");
-                    ctx->info(0, "will shutdown after " + std::to_string(ctx->stopCheckpoints) + " checkpoints");
+                    ctx->OLR_INFO(0, "will shutdown after " + std::to_string(ctx->stopCheckpoints) + " checkpoints");
                 }
 
                 if (debugJson.HasMember("stop-transactions")) {
                     ctx->stopTransactions = Ctx::getJsonFieldU64(configFileName, debugJson, "stop-transactions");
-                    ctx->info(0, "will shutdown after " + std::to_string(ctx->stopTransactions) + " transactions");
+                    ctx->OLR_INFO(0, "will shutdown after " + std::to_string(ctx->stopTransactions) + " transactions");
                 }
 
                 if (!ctx->isFlagSet(Ctx::REDO_FLAGS_SCHEMALESS) && (debugJson.HasMember("owner") || debugJson.HasMember("table"))) {
                     debugOwner = Ctx::getJsonFieldS(configFileName, SysUser::NAME_LENGTH, debugJson, "owner");
                     debugTable = Ctx::getJsonFieldS(configFileName, SysObj::NAME_LENGTH, debugJson, "table");
 
-                    ctx->info(0, "will shutdown after committed DML in " + std::string(debugOwner) + "." + debugTable);
+                    ctx->OLR_INFO(0, "will shutdown after committed DML in " + std::string(debugOwner) + "." + debugTable);
                 }
             }
 
@@ -842,7 +842,7 @@ namespace OpenLogReplicator {
                     const rapidjson::Value& skipXidArrayJson = Ctx::getJsonFieldA(configFileName, filterJson, "skip-xid");
                     for (rapidjson::SizeType k = 0; k < skipXidArrayJson.Size(); ++k) {
                         typeXid xid(Ctx::getJsonFieldS(configFileName, Ctx::JSON_XID_LENGTH, skipXidArrayJson, "skip-xid", k));
-                        ctx->info(0, "adding XID to skip list: " + xid.toString());
+                        ctx->OLR_INFO(0, "adding XID to skip list: " + xid.toString());
                         transactionBuffer->skipXidList.insert(xid);
                     }
                 }
@@ -851,7 +851,7 @@ namespace OpenLogReplicator {
                     const rapidjson::Value& dumpXidArrayJson = Ctx::getJsonFieldA(configFileName, filterJson, "dump-xid");
                     for (rapidjson::SizeType k = 0; k < dumpXidArrayJson.Size(); ++k) {
                         typeXid xid(Ctx::getJsonFieldS(configFileName, Ctx::JSON_XID_LENGTH, dumpXidArrayJson, "dump-xid", k));
-                        ctx->info(0, "adding XID to dump list: " + xid.toString());
+                        ctx->OLR_INFO(0, "adding XID to dump list: " + xid.toString());
                         transactionBuffer->dumpXidList.insert(xid);
                     }
                 }
@@ -881,7 +881,7 @@ namespace OpenLogReplicator {
             const char* alias = Ctx::getJsonFieldS(configFileName, Ctx::JSON_PARAMETER_LENGTH, targetJson, "alias");
             const char* source = Ctx::getJsonFieldS(configFileName, Ctx::JSON_PARAMETER_LENGTH, targetJson, "source");
 
-            ctx->info(0, "adding target: " + std::string(alias));
+            ctx->OLR_INFO(0, "adding target: " + std::string(alias));
             Replicator* replicator2 = nullptr;
             for (Replicator* replicatorTmp: replicators)
                 if (replicatorTmp->alias == source)
@@ -1020,7 +1020,7 @@ namespace OpenLogReplicator {
         if (unlikely(ctx->trace & Ctx::TRACE_THREADS)) {
             std::ostringstream ss;
             ss << std::this_thread::get_id();
-            ctx->logTrace(Ctx::TRACE_THREADS, "main (" + ss.str() + ") stop");
+            ctx->OLR_TRACE(Ctx::TRACE_THREADS, "main (" + ss.str() + ") stop");
         }
 
         return 0;

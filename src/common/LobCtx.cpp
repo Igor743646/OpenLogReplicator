@@ -34,7 +34,7 @@ namespace OpenLogReplicator {
             addLob(ctx, lobId, orphanedLobsIt->first.page, 0, std::move(orphanedLobsIt->second), xid, offset);
 
             if (unlikely(ctx->trace & Ctx::TRACE_LOB))
-                ctx->logTrace(Ctx::TRACE_LOB, "id: " + lobId.lower() + " page: " + std::to_string(orphanedLobsIt->first.page));
+                ctx->OLR_TRACE(Ctx::TRACE_LOB, "id: " + lobId.lower() + " page: " + std::to_string(orphanedLobsIt->first.page));
 
             orphanedLobsIt = orphanedLobs->erase(orphanedLobsIt);
         }
@@ -54,7 +54,7 @@ namespace OpenLogReplicator {
         auto dataMapIt = lobData->dataMap.find(element);
         if (dataMapIt != lobData->dataMap.end()) {
             if (unlikely(ctx->trace & Ctx::TRACE_LOB))
-                ctx->logTrace(Ctx::TRACE_LOB, "id: " + lobId.lower() + " page: " + std::to_string(page) + " OVERWRITE");
+                ctx->OLR_TRACE(Ctx::TRACE_LOB, "id: " + lobId.lower() + " page: " + std::to_string(page) + " OVERWRITE");
         }
 
         auto [dataMapItInserted, _] = lobData->dataMap.insert_or_assign(element, std::move(data));

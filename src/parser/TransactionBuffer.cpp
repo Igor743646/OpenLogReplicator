@@ -75,7 +75,7 @@ namespace OpenLogReplicator {
 
     TransactionBuffer::~TransactionBuffer() {
         if (!partiallyFullChunks.empty())
-            ctx->error(50062, "non-free blocks in transaction buffer: " + std::to_string(partiallyFullChunks.size()));
+            ctx->OLR_ERROR(50062, "non-free blocks in transaction buffer: " + std::to_string(partiallyFullChunks.size()));
 
         skipXidList.clear();
         dumpXidList.clear();
@@ -382,13 +382,13 @@ namespace OpenLogReplicator {
 
     void TransactionBuffer::addOrphanedLob(RedoLogRecord* redoLogRecord1) {
         if (unlikely(ctx->trace & Ctx::TRACE_LOB))
-            ctx->logTrace(Ctx::TRACE_LOB, "id: " + redoLogRecord1->lobId.upper() + " page: " + std::to_string(redoLogRecord1->dba) +
+            ctx->OLR_TRACE(Ctx::TRACE_LOB, "id: " + redoLogRecord1->lobId.upper() + " page: " + std::to_string(redoLogRecord1->dba) +
                                           " can't match, offset: " + std::to_string(redoLogRecord1->dataOffset));
 
         LobKey lobKey(redoLogRecord1->lobId, redoLogRecord1->dba);
 
         if (orphanedLobs.find(lobKey) != orphanedLobs.end()) {
-            ctx->warning(60009, "duplicate orphaned lob: " + redoLogRecord1->lobId.lower() + ", page: " +
+            ctx->OLR_WARN(60009, "duplicate orphaned lob: " + redoLogRecord1->lobId.lower() + ", page: " +
                                 std::to_string(redoLogRecord1->dba));
             return;
         }

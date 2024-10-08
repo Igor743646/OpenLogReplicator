@@ -730,7 +730,7 @@ namespace OpenLogReplicator {
                 }
             }
         } catch (DataException& ex) {
-            metadata->ctx->error(ex.code, ex.msg);
+            metadata->ctx->OLR_ERROR(ex.code, ex.msg);
             return false;
         }
         return true;

@@ -596,7 +596,7 @@ namespace OpenLogReplicator {
             const uint32_t asiz = ctx->read32(redoLogRecord->data() + fieldPos + 4);
 
             if (fieldSize < 8U + asiz * 8U)
-                ctx->warning(70001, "too short field kdli lmap asiz: " + std::to_string(fieldSize) + " offset: " +
+                ctx->OLR_WARN(70001, "too short field kdli lmap asiz: " + std::to_string(fieldSize) + " offset: " +
                                     std::to_string(redoLogRecord->dataOffset));
 
             *ctx->dumpStream << "KDLI lmap [" << std::dec << static_cast<uint64_t>(code) << "." << fieldSize << "]\n";
@@ -630,7 +630,7 @@ namespace OpenLogReplicator {
             const uint32_t asiz = ctx->read32(redoLogRecord->data() + fieldPos + 4);
 
             if (fieldSize < 8U + asiz * 16U) {
-                ctx->warning(70001, "too short field kdli lmapx asiz: " + std::to_string(fieldSize) + " offset: " +
+                ctx->OLR_WARN(70001, "too short field kdli lmapx asiz: " + std::to_string(fieldSize) + " offset: " +
                                     std::to_string(redoLogRecord->dataOffset));
                 return;
             }
@@ -1046,7 +1046,7 @@ namespace OpenLogReplicator {
             const uint32_t asiz = ctx->read32(redoLogRecord->data() + fieldPos + 4);
 
             if (fieldSize < 8 + asiz * 8)
-                ctx->warning(70001, "too short field kdli imap asiz: " + std::to_string(fieldSize) + " offset: " +
+                ctx->OLR_WARN(70001, "too short field kdli imap asiz: " + std::to_string(fieldSize) + " offset: " +
                                     std::to_string(redoLogRecord->dataOffset));
 
             *ctx->dumpStream << "KDLI imap [" << std::dec << static_cast<uint64_t>(code) << "." << fieldSize << "]\n";
@@ -1919,7 +1919,7 @@ namespace OpenLogReplicator {
         if (ktubl) {
             // KTUBL
             if (fieldSize < 28) {
-                ctx->warning(50061, "too short field ktubl: " + std::to_string(fieldSize) + " offset: " +
+                ctx->OLR_WARN(50061, "too short field ktubl: " + std::to_string(fieldSize) + " offset: " +
                                     std::to_string(redoLogRecord->dataOffset));
                 return;
             }

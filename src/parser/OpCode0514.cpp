@@ -26,7 +26,7 @@ namespace OpenLogReplicator {
         OpCode::process(ctx, redoLogRecord);
 
         if (unlikely(transaction == nullptr)) {
-            ctx->logTrace(Ctx::TRACE_TRANSACTION, "attributes with no transaction, offset: " + std::to_string(redoLogRecord->dataOffset));
+            ctx->OLR_TRACE(Ctx::TRACE_TRANSACTION, "attributes with no transaction, offset: " + std::to_string(redoLogRecord->dataOffset));
             return;
         }
         typePos fieldPos = 0;

@@ -40,7 +40,7 @@ namespace OpenLogReplicator {
         typeSize fieldSize = 0;
 
         if (unlikely(transaction == nullptr)) {
-            ctx->logTrace(Ctx::TRACE_TRANSACTION, "attributes with no transaction, offset: " + std::to_string(redoLogRecord->dataOffset));
+            ctx->OLR_TRACE(Ctx::TRACE_TRANSACTION, "attributes with no transaction, offset: " + std::to_string(redoLogRecord->dataOffset));
             return;
         }
 
@@ -262,7 +262,7 @@ namespace OpenLogReplicator {
 
     void OpCode0513::attributeSessionSerial(const Ctx* ctx, RedoLogRecord* redoLogRecord, typePos fieldPos, typeSize fieldSize, Transaction* transaction) {
         if (unlikely(fieldSize < 4)) {
-            ctx->warning(70001, "too short field session serial: " + std::to_string(fieldSize) + " offset: " +
+            ctx->OLR_WARN(70001, "too short field session serial: " + std::to_string(fieldSize) + " offset: " +
                                 std::to_string(redoLogRecord->dataOffset));
             return;
         }
@@ -273,7 +273,7 @@ namespace OpenLogReplicator {
             sessionNumber = ctx->read16(redoLogRecord->data() + fieldPos + 0);
         else {
             if (fieldSize < 8) {
-                ctx->warning(70001, "too short field session number: " + std::to_string(fieldSize) + " offset: " +
+                ctx->OLR_WARN(70001, "too short field session number: " + std::to_string(fieldSize) + " offset: " +
                                     std::to_string(redoLogRecord->dataOffset));
                 return;
             }

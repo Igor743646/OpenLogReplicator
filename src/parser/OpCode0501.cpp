@@ -276,7 +276,7 @@ namespace OpenLogReplicator {
         // Field: 4
 
         if (fieldSize < 8) {
-            ctx->warning(70001, "too short field lev1 bitmap block: " + std::to_string(fieldSize) + " offset: " +
+            ctx->OLR_WARN(70001, "too short field lev1 bitmap block: " + std::to_string(fieldSize) + " offset: " +
                                 std::to_string(redoLogRecord->dataOffset));
             return;
         }
@@ -448,7 +448,7 @@ namespace OpenLogReplicator {
                 const uint16_t keySizes = ctx->read16(redoLogRecord->data() + fieldPos + 20);
 
                 if (fieldSize < keySizes * 2 + 24) {
-                    ctx->warning(70001, "too short field kdilk key sizes(" + std::to_string(keySizes) + "): " +
+                    ctx->OLR_WARN(70001, "too short field kdilk key sizes(" + std::to_string(keySizes) + "): " +
                                         std::to_string(fieldSize) + " offset: " + std::to_string(redoLogRecord->dataOffset));
                     return;
                 }
@@ -465,7 +465,7 @@ namespace OpenLogReplicator {
 
     void OpCode0501::rowDeps(const Ctx* ctx, RedoLogRecord* redoLogRecord, typePos fieldPos, typeSize fieldSize) {
         if (fieldSize < 8)
-            ctx->warning(70001, "too short field row dependencies: " + std::to_string(fieldSize) + " offset: " +
+            ctx->OLR_WARN(70001, "too short field row dependencies: " + std::to_string(fieldSize) + " offset: " +
                                 std::to_string(redoLogRecord->dataOffset));
 
         if (unlikely(ctx->dumpRedoLog >= 1)) {

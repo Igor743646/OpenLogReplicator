@@ -88,7 +88,7 @@ namespace OpenLogReplicator {
     }
 
     void MetricsPrometheus::initialize(const Ctx* ctx) {
-        ctx->info(0, "starting Prometheus metrics, listening on: " + bind);
+        ctx->OLR_INFO(0, "starting Prometheus metrics, listening on: " + bind);
         exposer = new prometheus::Exposer(bind);
         registry = std::make_shared<prometheus::Registry>();
 

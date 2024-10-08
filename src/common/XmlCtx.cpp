@@ -38,7 +38,7 @@ namespace OpenLogReplicator {
             delete xdbXNmTmp;
         }
         if (!xdbXNmMapId.empty())
-            ctx->error(50029, "key map XDB.X$NM" + tokSuf + " not empty, left: " + std::to_string(xdbXNmMapId.size()) + " at exit");
+            ctx->OLR_ERROR(50029, "key map XDB.X$NM" + tokSuf + " not empty, left: " + std::to_string(xdbXNmMapId.size()) + " at exit");
 
         while (!xdbXPtMapRowId.empty()) {
             auto xdbXPtMapRowIdIt = xdbXPtMapRowId.cbegin();
@@ -47,7 +47,7 @@ namespace OpenLogReplicator {
             delete xdbXPtTmp;
         }
         if (!xdbXPtMapId.empty())
-            ctx->error(50029, "key map XDB.X$PT" + tokSuf + " not empty, left: " + std::to_string(xdbXPtMapId.size()) + " at exit");
+            ctx->OLR_ERROR(50029, "key map XDB.X$PT" + tokSuf + " not empty, left: " + std::to_string(xdbXPtMapId.size()) + " at exit");
 
         while (!xdbXQnMapRowId.empty()) {
             auto xdbXQnMapRowIdIt = xdbXQnMapRowId.cbegin();
@@ -56,7 +56,7 @@ namespace OpenLogReplicator {
             delete xdbXQnTmp;
         }
         if (!xdbXQnMapId.empty())
-            ctx->error(50029, "key map XDB.X$QN" + tokSuf + " not empty, left: " + std::to_string(xdbXQnMapId.size()) + " at exit");
+            ctx->OLR_ERROR(50029, "key map XDB.X$QN" + tokSuf + " not empty, left: " + std::to_string(xdbXQnMapId.size()) + " at exit");
     }
 
     XdbXNm* XmlCtx::dictXdbXNmFind(typeRowId rowId) {
@@ -121,7 +121,7 @@ namespace OpenLogReplicator {
         if (xdbXNmMapIdIt != xdbXNmMapId.end())
             xdbXNmMapId.erase(xdbXNmMapIdIt);
         else
-            ctx->warning(50030, "missing index for XDB.X$NM" + tokSuf + " (ID: '" + xdbXNm->id + "')");
+            ctx->OLR_WARN(50030, "missing index for XDB.X$NM" + tokSuf + " (ID: '" + xdbXNm->id + "')");
     }
 
     void XmlCtx::dictXdbXPtDrop(XdbXPt* xdbXPt) {
@@ -134,7 +134,7 @@ namespace OpenLogReplicator {
         if (xdbXPtMapIdIt != xdbXPtMapId.end())
             xdbXPtMapId.erase(xdbXPtMapIdIt);
         else
-            ctx->warning(50030, "missing index for XDB.X$PT" + tokSuf + " (ID: '" + xdbXPt->id + "')");
+            ctx->OLR_WARN(50030, "missing index for XDB.X$PT" + tokSuf + " (ID: '" + xdbXPt->id + "')");
     }
 
     void XmlCtx::dictXdbXQnDrop(XdbXQn* xdbXQn) {
@@ -147,7 +147,7 @@ namespace OpenLogReplicator {
         if (xdbXQnMapIdIt != xdbXQnMapId.end())
             xdbXQnMapId.erase(xdbXQnMapIdIt);
         else
-            ctx->warning(50030, "missing index for XDB.X$QN" + tokSuf + " (ID: '" + xdbXQn->id + "')");
+            ctx->OLR_WARN(50030, "missing index for XDB.X$QN" + tokSuf + " (ID: '" + xdbXQn->id + "')");
     }
 
 }

@@ -45,7 +45,7 @@ namespace OpenLogReplicator {
         if (rk != nullptr)
             rd_kafka_destroy(rk);
 
-        ctx->info(0, "Kafka producer exit code: " + std::to_string(err));
+        ctx->OLR_INFO(0, "Kafka producer exit code: " + std::to_string(err));
     }
 
     void WriterKafka::addProperty(const std::string& key, const std::string& value) {
@@ -120,7 +120,7 @@ namespace OpenLogReplicator {
     void WriterKafka::logger_cb(const rd_kafka_t* rkCb, int level, const char* fac, const char* buf) {
         WriterKafka* writer = reinterpret_cast<WriterKafka*>(rd_kafka_opaque(rkCb));
         if (unlikely(writer->ctx->trace & Ctx::TRACE_WRITER))
-            writer->ctx->logTrace(Ctx::TRACE_WRITER, std::to_string(level) + ", rk: " + (rkCb ? rd_kafka_name(rkCb) : nullptr) +
+            writer->ctx->OLR_TRACE(Ctx::TRACE_WRITER, std::to_string(level) + ", rk: " + (rkCb ? rd_kafka_name(rkCb) : nullptr) +
                                                      ", fac: " + fac + ", err: " + buf);
     }
 

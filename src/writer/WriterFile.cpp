@@ -153,7 +153,7 @@ namespace OpenLogReplicator {
 
                 std::string fileNameFull(pathName + "/" + ent->d_name);
                 if (stat(fileNameFull.c_str(), &fileStat) != 0) {
-                    ctx->warning(10003, "file: " + fileNameFull + " - get metadata returned: " + strerror(errno));
+                    ctx->OLR_WARN(10003, "file: " + fileNameFull + " - get metadata returned: " + strerror(errno));
                     continue;
                 }
 
@@ -169,7 +169,7 @@ namespace OpenLogReplicator {
                     continue;
 
                 if (unlikely(ctx->trace & Ctx::TRACE_WRITER))
-                    ctx->logTrace(Ctx::TRACE_WRITER, "found previous output file: " + pathName + "/" + fileName);
+                    ctx->OLR_TRACE(Ctx::TRACE_WRITER, "found previous output file: " + pathName + "/" + fileName);
                 std::string fileNameFoundNum(fileName.substr(prefix.length(), fileName.length() - suffix.length() - prefix.length()));
                 typeScn fileNum;
                 try {
@@ -187,7 +187,7 @@ namespace OpenLogReplicator {
                 }
             }
             closedir(dir);
-            ctx->info(0, "next number for " + this->output + " is: " + std::to_string(fileNameNum));
+            ctx->OLR_INFO(0, "next number for " + this->output + " is: " + std::to_string(fileNameNum));
         }
 
         streaming = true;
@@ -212,7 +212,7 @@ namespace OpenLogReplicator {
                 fileSize = 0;
             }
             if (size > maxFileSize)
-                ctx->warning(60029, "message size (" + std::to_string(size) + ") will exceed 'max-file' size (" +
+                ctx->OLR_WARN(60029, "message size (" + std::to_string(size) + ") will exceed 'max-file' size (" +
                                     std::to_string(maxFileSize) + ")");
 
             if (outputDes == -1) {
@@ -229,7 +229,7 @@ namespace OpenLogReplicator {
                 shouldSwitch = true;
 
             if (size > maxFileSize)
-                ctx->warning(60029, "message size (" + std::to_string(size) + ") will exceed 'max-file' size (" +
+                ctx->OLR_WARN(60029, "message size (" + std::to_string(size) + ") will exceed 'max-file' size (" +
                                     std::to_string(maxFileSize) + ")");
 
             if (outputDes == -1 || shouldSwitch) {
@@ -240,7 +240,7 @@ namespace OpenLogReplicator {
                 std::string newOutputFile = pathName + "/" + fileNameMask.substr(0, prefixPos) + str + fileNameMask.substr(suffixPos);
                 if (fullFileName == newOutputFile) {
                     if (!warningDisplayed) {
-                        ctx->warning(60030, "rotation size is set too low (" + std::to_string(maxFileSize) +
+                        ctx->OLR_WARN(60030, "rotation size is set too low (" + std::to_string(maxFileSize) +
                                             "), increase it, should rotate but too early (" + fullFileName + ")");
                         warningDisplayed = true;
                     }
@@ -276,7 +276,7 @@ namespace OpenLogReplicator {
             } else
                 fileSize = 0;
 
-            ctx->info(0, "opening output file: " + fullFileName);
+            ctx->OLR_INFO(0, "opening output file: " + fullFileName);
             outputDes = open(fullFileName.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 
             if (outputDes == -1)

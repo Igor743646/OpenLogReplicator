@@ -128,7 +128,7 @@ namespace OpenLogReplicator {
                 ok = false;
 
             if (!ok) {
-                ctx->warning(70003, "trying to rollback: " + std::to_string(lastRedoLogRecord2->opCode) + " with: " +
+                ctx->OLR_WARN(70003, "trying to rollback: " + std::to_string(lastRedoLogRecord2->opCode) + " with: " +
                                     std::to_string(redoLogRecord1->opCode) + ", offset: " + std::to_string(redoLogRecord1->dataOffset) + ", xid: " +
                                     xid.toString() + ", pos: 2");
                 return;
@@ -139,7 +139,7 @@ namespace OpenLogReplicator {
             return;
         }
 
-        ctx->warning(70004, "rollback failed for " + std::to_string(redoLogRecord1->opCode) +
+        ctx->OLR_WARN(70004, "rollback failed for " + std::to_string(redoLogRecord1->opCode) +
                             " empty buffer, offset: " + std::to_string(redoLogRecord1->dataOffset) + ", xid: " + xid.toString() + ", pos: 2");
     }
 
@@ -173,7 +173,7 @@ namespace OpenLogReplicator {
                 ok = false;
 
             if (!ok) {
-                metadata->ctx->warning(70003, "trying to rollback: " + std::to_string(lastRedoLogRecord2->opCode) + " with: " +
+                metadata->ctx->OLR_WARN(70003, "trying to rollback: " + std::to_string(lastRedoLogRecord2->opCode) + " with: " +
                                               std::to_string(redoLogRecord1->opCode) + ", offset: " + std::to_string(redoLogRecord1->dataOffset) +
                                               ", xid: " + xid.toString() + ", pos: 1");
                 return;
@@ -184,7 +184,7 @@ namespace OpenLogReplicator {
             return;
         }
 
-        metadata->ctx->warning(70004, "rollback failed for " + std::to_string(redoLogRecord1->opCode) +
+        metadata->ctx->OLR_WARN(70004, "rollback failed for " + std::to_string(redoLogRecord1->opCode) +
                                       " empty buffer, offset: " + std::to_string(redoLogRecord1->dataOffset) + ", xid: " + xid.toString() + ", pos: 1");
     }
 
@@ -198,7 +198,7 @@ namespace OpenLogReplicator {
         if (opCodes == 0 || (metadata->ctx->skipRollback == 1 && rollback))
             return;
         if (unlikely(metadata->ctx->trace & Ctx::TRACE_TRANSACTION))
-            metadata->ctx->logTrace(Ctx::TRACE_TRANSACTION, toString());
+            metadata->ctx->OLR_TRACE(Ctx::TRACE_TRANSACTION, toString());
 
         if (system) {
             lckSchema.lock();
@@ -230,7 +230,7 @@ namespace OpenLogReplicator {
                 tcr.next();
 
                 if (unlikely(metadata->ctx->trace & Ctx::TRACE_TRANSACTION))
-                    metadata->ctx->logTrace(Ctx::TRACE_TRANSACTION, std::to_string(redoLogRecord1->size) + ":" +
+                    metadata->ctx->OLR_TRACE(Ctx::TRACE_TRANSACTION, std::to_string(redoLogRecord1->size) + ":" +
                                                                     std::to_string(redoLogRecord2->size) + " fb: " +
                                                                     std::to_string(static_cast<uint64_t>(redoLogRecord1->fb)) + ":" +
                                                                     std::to_string(static_cast<uint64_t>(redoLogRecord2->fb)) + " op: " + std::to_string(op) +
@@ -275,7 +275,7 @@ namespace OpenLogReplicator {
                         const OracleLob* lob = metadata->schema->checkLobDict(redoLogRecord1->obj);
                         if (lob != nullptr) {
                             if (unlikely(metadata->ctx->trace & Ctx::TRACE_LOB))
-                                metadata->ctx->logTrace(Ctx::TRACE_LOB, "id: " + redoLogRecord1->lobId.lower() + " xid: " + xid.toString() +
+                                metadata->ctx->OLR_TRACE(Ctx::TRACE_LOB, "id: " + redoLogRecord1->lobId.lower() + " xid: " + xid.toString() +
                                                                         " obj: " + std::to_string(lob->obj) + " op: " + std::to_string(op) + " dba: " +
                                                                         std::to_string(redoLogRecord1->dba) + " page: " +
                                                                         std::to_string(redoLogRecord1->lobPageNo) + " col: " + std::to_string(lob->intCol) +
@@ -291,7 +291,7 @@ namespace OpenLogReplicator {
                         const OracleLob* lob = metadata->schema->checkLobDict(redoLogRecord1->obj);
                         if (lob != nullptr) {
                             if (unlikely(metadata->ctx->trace & Ctx::TRACE_LOB))
-                                metadata->ctx->logTrace(Ctx::TRACE_LOB, "id: " + redoLogRecord1->lobId.lower() + " xid: " + xid.toString() + " obj: " +
+                                metadata->ctx->OLR_TRACE(Ctx::TRACE_LOB, "id: " + redoLogRecord1->lobId.lower() + " xid: " + xid.toString() + " obj: " +
                                                                         std::to_string(lob->obj) + " op: " + std::to_string(op) + " dba: " +
                                                                         std::to_string(redoLogRecord1->dba) + " page: " +
                                                                         std::to_string(redoLogRecord1->lobPageNo) + " col: " + std::to_string(lob->intCol) +
@@ -310,7 +310,7 @@ namespace OpenLogReplicator {
                                    static_cast<uint64_t>(redoLogRecord2->data()[redoLogRecord2->indKeyData + j]);
                             }
 
-                            metadata->ctx->logTrace(Ctx::TRACE_LOB_DATA, "index: " + ss.str() + " code: " +
+                            metadata->ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "index: " + ss.str() + " code: " +
                                                                          std::to_string(static_cast<uint64_t>(redoLogRecord2->indKeyDataCode)));
                         }
 
@@ -343,7 +343,7 @@ namespace OpenLogReplicator {
 
                             case OpCode::KDLI_CODE_FILL:
                                 if (unlikely(metadata->ctx->trace & Ctx::TRACE_LOB))
-                                    metadata->ctx->logTrace(Ctx::TRACE_LOB, "id: " + redoLogRecord2->lobId.lower() + " xid: " + xid.toString() +
+                                    metadata->ctx->OLR_TRACE(Ctx::TRACE_LOB, "id: " + redoLogRecord2->lobId.lower() + " xid: " + xid.toString() +
                                                                             " obj: " + std::to_string(redoLogRecord2->dataObj) + " op: " +
                                                                             std::to_string(redoLogRecord2->opCode) + "     dba: " +
                                                                             std::to_string(redoLogRecord2->dba) + " page: " +
@@ -364,7 +364,7 @@ namespace OpenLogReplicator {
                         // Update key data in row
                         const OracleLob* lob = metadata->schema->checkLobIndexDict(redoLogRecord2->dataObj);
                         if (lob == nullptr) {
-                            metadata->ctx->warning(60016, "LOB is null for (obj: " + std::to_string(redoLogRecord2->obj) +
+                            metadata->ctx->OLR_WARN(60016, "LOB is null for (obj: " + std::to_string(redoLogRecord2->obj) +
                                                           ", dataobj: " + std::to_string(redoLogRecord2->dataObj) + ", offset: " +
                                                           std::to_string(redoLogRecord1->dataOffset) + ", xid: " + xid.toString());
                             break;
@@ -390,7 +390,7 @@ namespace OpenLogReplicator {
                         }
 
                         if (unlikely(metadata->ctx->trace & Ctx::TRACE_LOB))
-                            metadata->ctx->logTrace(Ctx::TRACE_LOB, "id: " + redoLogRecord2->lobId.lower() + " xid: " + xid.toString() + " obj: " +
+                            metadata->ctx->OLR_TRACE(Ctx::TRACE_LOB, "id: " + redoLogRecord2->lobId.lower() + " xid: " + xid.toString() + " obj: " +
                                                                     std::to_string(redoLogRecord1->obj) + " op: " + std::to_string(op) + " dba: " +
                                                                     std::to_string(redoLogRecord2->dba) + " page: " +
                                                                     std::to_string(redoLogRecord2->lobPageNo) + " col: " + std::to_string(lob->intCol) +
@@ -463,7 +463,7 @@ namespace OpenLogReplicator {
                                     }
                                 }
                             } else {
-                                metadata->ctx->warning(60017, "minimal supplemental log missing or redo log inconsistency for transaction " +
+                                metadata->ctx->OLR_WARN(60017, "minimal supplemental log missing or redo log inconsistency for transaction " +
                                                               xid.toString() + ", offset: " + std::to_string(redoLogRecord1->dataOffset));
                             }
                         }
@@ -532,18 +532,18 @@ namespace OpenLogReplicator {
 
                 // Split very big transactions
                 if (maxMessageMb > 0 && builder->builderSize() + TransactionChunk::DATA_BUFFER_SIZE > maxMessageMb * 1024 * 1024) {
-                    metadata->ctx->warning(60015, "big transaction divided (forced commit after " + std::to_string(builder->builderSize()) +
+                    metadata->ctx->OLR_WARN(60015, "big transaction divided (forced commit after " + std::to_string(builder->builderSize()) +
                                                   " bytes), xid: " + xid.toString());
 
                     if (system) {
                         if (unlikely(metadata->ctx->trace & Ctx::TRACE_SYSTEM))
-                            metadata->ctx->logTrace(Ctx::TRACE_SYSTEM, "commit");
+                            metadata->ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "commit");
                         builder->systemTransaction->commit(commitScn);
                         delete builder->systemTransaction;
                         builder->systemTransaction = nullptr;
 
                         if (unlikely(metadata->ctx->trace & Ctx::TRACE_SYSTEM))
-                            metadata->ctx->logTrace(Ctx::TRACE_SYSTEM, "begin");
+                            metadata->ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "begin");
                         builder->systemTransaction = new SystemTransaction(builder, metadata);
                     }
 

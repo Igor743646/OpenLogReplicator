@@ -592,12 +592,20 @@ namespace OpenLogReplicator {
 
         void welcome(const std::string& message) const;
         void hint(const std::string& message) const;
-        void error(int code, const std::string& message) const;
-        void warning(int code, const std::string& message) const;
-        void info(int code, const std::string& message) const;
-        void debug(int code, const std::string& message) const;
-        void logTrace(uint64_t mask, const std::string& message) const;
+        void message(int code, const std::string& msg, const char* type, const char* file, const int line) const;
+        void error(int code, const std::string& message, const char* file, const int line) const;
+        void warning(int code, const std::string& message, const char* file, const int line) const;
+        void info(int code, const std::string& message, const char* file, const int line) const;
+        void debug(int code, const std::string& message, const char* file, const int line) const;
+        void logTrace(uint64_t mask, const std::string& message, const char* = "NONE", const int = -1) const;
     };
+
+    #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+    #define OLR_TRACE(mask, message) logTrace(mask, message, __FILENAME__, __LINE__)
+    #define OLR_ERROR(code, message) error(code, message,  __FILENAME__, __LINE__)
+    #define OLR_INFO(code, message) info(code, message,  __FILENAME__, __LINE__)
+    #define OLR_WARN(code, message) warning(code, message,  __FILENAME__, __LINE__)
+    #define OLR_DEBUG(code, message) debug(code, message,  __FILENAME__, __LINE__)
 }
 
 #endif

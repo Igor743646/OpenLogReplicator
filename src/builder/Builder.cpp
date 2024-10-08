@@ -700,7 +700,7 @@ namespace OpenLogReplicator {
         attributes = newAttributes;
 
         if (attributes->size() == 0) {
-            metadata->ctx->warning(50065, "empty attributes for XID: " + lastXid.toString());
+            metadata->ctx->OLR_WARN(50065, "empty attributes for XID: " + lastXid.toString());
         }
     }
 
@@ -920,7 +920,7 @@ namespace OpenLogReplicator {
             }
 
             if (redoLogRecord2p == nullptr) {
-                ctx->warning(60001, "incomplete row for table (obj: " + std::to_string(redoLogRecord1->obj) + "), probably IOT, offset: " +
+                ctx->OLR_WARN(60001, "incomplete row for table (obj: " + std::to_string(redoLogRecord1->obj) + "), probably IOT, offset: " +
                                     std::to_string(redoLogRecord1->dataOffset) + ", xid: " + lastXid.toString());
                 obj = 0;
                 dataObj = 0;
@@ -967,7 +967,7 @@ namespace OpenLogReplicator {
             // UNDO
             if (redoLogRecord1p->rowData > 0) {
                 if (unlikely((ctx->trace & Ctx::TRACE_DML) != 0 || dump)) {
-                    ctx->logTrace(Ctx::TRACE_DML, "UNDO");
+                    ctx->OLR_TRACE(Ctx::TRACE_DML, "UNDO");
                 }
 
                 nulls = redoLogRecord1p->data() + redoLogRecord1p->nullsDelta;
@@ -1068,7 +1068,7 @@ namespace OpenLogReplicator {
             // Supplemental columns
             if (redoLogRecord1p->suppLogRowData > 0) {
                 if (unlikely((ctx->trace & Ctx::TRACE_DML) != 0 || dump)) {
-                    ctx->logTrace(Ctx::TRACE_DML, "UNDO SUP");
+                    ctx->OLR_TRACE(Ctx::TRACE_DML, "UNDO SUP");
                 }
 
                 while (fieldNum < redoLogRecord1p->suppLogRowData - 1U)
@@ -1146,7 +1146,7 @@ namespace OpenLogReplicator {
             // REDO
             if (redoLogRecord2p->rowData > 0) {
                 if (unlikely((ctx->trace & Ctx::TRACE_DML) != 0 || dump)) {
-                    ctx->logTrace(Ctx::TRACE_DML, "REDO");
+                    ctx->OLR_TRACE(Ctx::TRACE_DML, "REDO");
                 }
 
                 fieldPos = 0;
@@ -1371,7 +1371,7 @@ namespace OpenLogReplicator {
 
         if (unlikely((ctx->trace & Ctx::TRACE_DML) != 0 || dump)) {
             if (table != nullptr) {
-                ctx->logTrace(Ctx::TRACE_DML, "tab: " + table->owner + "." + table->name + " type: " + std::to_string(type) + " columns: " +
+                ctx->OLR_TRACE(Ctx::TRACE_DML, "tab: " + table->owner + "." + table->name + " type: " + std::to_string(type) + " columns: " +
                                               std::to_string(valuesMax));
 
                 baseMax = valuesMax >> 6;
@@ -1385,7 +1385,7 @@ namespace OpenLogReplicator {
                         if (column >= table->maxSegCol)
                             break;
 
-                        ctx->logTrace(Ctx::TRACE_DML, "DML: " + std::to_string(column + 1) + ":  B(" +
+                        ctx->OLR_TRACE(Ctx::TRACE_DML, "DML: " + std::to_string(column + 1) + ":  B(" +
                                                       std::to_string(values[column][VALUE_BEFORE] != nullptr ? sizes[column][VALUE_BEFORE] : -1) + ") A(" +
                                                       std::to_string(values[column][VALUE_AFTER] != nullptr ? sizes[column][VALUE_AFTER] : -1) + ") BS(" +
                                                       std::to_string(values[column][VALUE_BEFORE_SUPP] != nullptr ? sizes[column][VALUE_BEFORE_SUPP] : -1) +
@@ -1394,7 +1394,7 @@ namespace OpenLogReplicator {
                     }
                 }
             } else {
-                ctx->logTrace(Ctx::TRACE_DML, "tab: (obj: " + std::to_string(redoLogRecord1->obj) + ", dataobj: " +
+                ctx->OLR_TRACE(Ctx::TRACE_DML, "tab: (obj: " + std::to_string(redoLogRecord1->obj) + ", dataobj: " +
                                               std::to_string(redoLogRecord1->dataObj) + ") type: " + std::to_string(type) + " columns: " +
                                               std::to_string(valuesMax));
 
@@ -1407,7 +1407,7 @@ namespace OpenLogReplicator {
                         if ((valuesSet[base] & mask) == 0)
                             continue;
 
-                        ctx->logTrace(Ctx::TRACE_DML, "DML: " + std::to_string(column + 1) + ":  B(" +
+                        ctx->OLR_TRACE(Ctx::TRACE_DML, "DML: " + std::to_string(column + 1) + ":  B(" +
                                                       std::to_string(sizes[column][VALUE_BEFORE]) + ") A(" + std::to_string(sizes[column][VALUE_AFTER]) +
                                                       ") BS(" + std::to_string(sizes[column][VALUE_BEFORE_SUPP]) + ") AS(" +
                                                       std::to_string(sizes[column][VALUE_AFTER_SUPP]) + ")");
@@ -1435,7 +1435,7 @@ namespace OpenLogReplicator {
                                 sizes[column][VALUE_BEFORE] == 0 && sizes[column][VALUE_AFTER] > 0) {
                                 if (!table->columns[column]->nullWarning) {
                                     table->columns[column]->nullWarning = true;
-                                    ctx->warning(60034, "observed UPDATE operation for NOT NULL column with NULL value for table " +
+                                    ctx->OLR_WARN(60034, "observed UPDATE operation for NOT NULL column with NULL value for table " +
                                             table->owner + "." + table->name + " column " + table->columns[column]->name);
                                 }
                                 if (ctx->isFlagSet(Ctx::REDO_FLAGS_EXPERIMENTAL_NOT_NULL_MISSING)) {
@@ -1826,7 +1826,7 @@ namespace OpenLogReplicator {
 
                 ++pos;
                 if (pos + 2U >= size) {
-                    ctx->warning(60036, "incorrect XML data: header too short, can't read flags");
+                    ctx->OLR_WARN(60036, "incorrect XML data: header too short, can't read flags");
                     return false;
                 }
                 ++pos; //uint8_t flags0 = data[pos++];
@@ -1873,12 +1873,12 @@ namespace OpenLogReplicator {
             if (data[pos] == 0x9F) {
                 ++pos;
                 if (pos + 1U >= size) {
-                    ctx->warning(60036, "incorrect XML data: prolog too short, can't read version and flags");
+                    ctx->OLR_WARN(60036, "incorrect XML data: prolog too short, can't read version and flags");
                     return false;
                 }
                 uint8_t binaryXmlVersion = data[pos++];
                 if (binaryXmlVersion != 1) {
-                    ctx->warning(60036, "incorrect XML data: prolog contains incorrect version, expected: 1, found: " +
+                    ctx->OLR_WARN(60036, "incorrect XML data: prolog contains incorrect version, expected: 1, found: " +
                                         std::to_string(static_cast<int>(data[pos + 1])));
                     return false;
                 }
@@ -1886,13 +1886,13 @@ namespace OpenLogReplicator {
 
                 if ((flags0 & XML_PROLOG_DOCID) != 0) {
                     if (pos >= size) {
-                        ctx->warning(60036, "incorrect XML data: prolog too short, can't read docid length");
+                        ctx->OLR_WARN(60036, "incorrect XML data: prolog too short, can't read docid length");
                         return false;
                     }
                     uint8_t docidSize = data[pos++];
 
                     if (pos + docidSize - 1U >= size) {
-                        ctx->warning(60036, "incorrect XML data: prolog too short, can't read docid data");
+                        ctx->OLR_WARN(60036, "incorrect XML data: prolog too short, can't read docid data");
                         return false;
                     }
 
@@ -1901,25 +1901,25 @@ namespace OpenLogReplicator {
 
                 if ((flags0 & XML_PROLOG_PATHID) != 0) {
                     if (pos >= size) {
-                        ctx->warning(60036, "incorrect XML data: prolog too short, can't read path length (1)");
+                        ctx->OLR_WARN(60036, "incorrect XML data: prolog too short, can't read path length (1)");
                         return false;
                     }
                     uint8_t pathidSize = data[pos++];
 
                     if (pos + pathidSize - 1U >= size) {
-                        ctx->warning(60036, "incorrect XML data: prolog too short, can't read pathid data (1)");
+                        ctx->OLR_WARN(60036, "incorrect XML data: prolog too short, can't read pathid data (1)");
                         return false;
                     }
 
                     pos += pathidSize;
                     if (pos >= size) {
-                        ctx->warning(60036, "incorrect XML data: prolog too short, can't read path length (2)");
+                        ctx->OLR_WARN(60036, "incorrect XML data: prolog too short, can't read path length (2)");
                         return false;
                     }
                     pathidSize = data[pos++];
 
                     if (pos + pathidSize - 1U >= size) {
-                        ctx->warning(60036, "incorrect XML data: prolog too short, can't read pathid data (2)");
+                        ctx->OLR_WARN(60036, "incorrect XML data: prolog too short, can't read pathid data (2)");
                         return false;
                     }
 
@@ -1940,7 +1940,7 @@ namespace OpenLogReplicator {
                 if (data[pos] == 0xC8) {
                     ++pos;
                     if (pos + 1U >= size) {
-                        ctx->warning(60036, "incorrect XML data: string too short, can't read 0xC8 data");
+                        ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 0xC8 data");
                         return false;
                     }
                     tagSize = 0;
@@ -1949,7 +1949,7 @@ namespace OpenLogReplicator {
                 } else if (data[pos] == 0xC9) {
                     ++pos;
                     if (pos + 3U >= size) {
-                        ctx->warning(60036, "incorrect XML data: string too short, can't read 0xC9 data");
+                        ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 0xC9 data");
                         return false;
                     }
                     tagSize = 0;
@@ -1958,7 +1958,7 @@ namespace OpenLogReplicator {
                 } else if (data[pos] == 0xC0) {
                     ++pos;
                     if (pos + 2U >= size) {
-                        ctx->warning(60036, "incorrect XML data: string too short, can't read 0xC0xx data");
+                        ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 0xC0xx data");
                         return false;
                     }
                     tagSize = data[pos];
@@ -1973,7 +1973,7 @@ namespace OpenLogReplicator {
                 } else if (data[pos] == 0xC1) {
                     ++pos;
                     if (pos + 3U >= size) {
-                        ctx->warning(60036, "incorrect XML data: string too short, can't read 0xC1xxxx data");
+                        ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 0xC1xxxx data");
                         return false;
                     }
                     tagSize = ctx->read16Big(data + pos);
@@ -1984,7 +1984,7 @@ namespace OpenLogReplicator {
                 } else if (data[pos] == 0xC2) {
                     ++pos;
                     if (pos + 4 >= size) {
-                        ctx->warning(60036, "incorrect XML data: string too short, can't read 0xC2xxxxxxxx data");
+                        ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 0xC2xxxxxxxx data");
                         return false;
                     }
                     tagSize = data[pos];
@@ -1999,7 +1999,7 @@ namespace OpenLogReplicator {
                 } else if (data[pos] == 0xC3) {
                     ++pos;
                     if (pos + 5U >= size) {
-                        ctx->warning(60036, "incorrect XML data: string too short, can't read 0xC3xxxxxxxx data");
+                        ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 0xC3xxxxxxxx data");
                         return false;
                     }
                     tagSize = ctx->read16Big(data + pos);
@@ -2027,7 +2027,7 @@ namespace OpenLogReplicator {
 
                 auto xdbXQnMapIdIt = xmlCtx->xdbXQnMapId.find(codeStr);
                 if (xdbXQnMapIdIt == xmlCtx->xdbXQnMapId.end()) {
-                    ctx->warning(60036, "incorrect XML data: string too short, can't decode qn   " + codeStr);
+                    ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't decode qn   " + codeStr);
                     return false;
                 }
 
@@ -2068,7 +2068,7 @@ namespace OpenLogReplicator {
 
                 if (tagSize > 0) {
                     if (pos + tagSize >= size) {
-                        ctx->warning(60036, "incorrect XML data: string too short, can't read 0xC1xxxx data (2)");
+                        ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 0xC1xxxx data (2)");
                         return false;
                     }
                     valueBufferCheck(tagSize, offset);
@@ -2098,7 +2098,7 @@ namespace OpenLogReplicator {
             if (data[pos] == 0xB2) {
                 ++pos;
                 if (pos + 7 >= size) {
-                    ctx->warning(60036, "incorrect XML data: string too short, can't read DD");
+                    ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read DD");
                     return false;
                 }
 
@@ -2127,7 +2127,7 @@ namespace OpenLogReplicator {
 
                 auto dictNmSpcMapIt = dictNmSpcMap.find(dictId);
                 if (dictNmSpcMapIt != dictNmSpcMap.end()) {
-                    ctx->warning(60036, "incorrect XML data: namespace " + dictId + " duplicated dict");
+                    ctx->OLR_WARN(60036, "incorrect XML data: namespace " + dictId + " duplicated dict");
                     return false;
                 }
                 dictNmSpcMap.insert_or_assign(dictId, nmSpcId);
@@ -2138,7 +2138,7 @@ namespace OpenLogReplicator {
 
                     auto nmSpcPrefixMapIt = nmSpcPrefixMap.find(nmSpcId);
                     if (nmSpcPrefixMapIt != nmSpcPrefixMap.end()) {
-                        ctx->warning(60036, "incorrect XML data: namespace " + nmSpcId + " duplicated prefix");
+                        ctx->OLR_WARN(60036, "incorrect XML data: namespace " + nmSpcId + " duplicated prefix");
                         return false;
                     }
                     nmSpcPrefixMap.insert_or_assign(nmSpcId, prefix);
@@ -2152,7 +2152,7 @@ namespace OpenLogReplicator {
                 ++pos;
 
                 if (pos + 2U >= size) {
-                    ctx->warning(60036, "incorrect XML data: string too short, can't read DD");
+                    ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read DD");
                     return false;
                 }
                 uint16_t dict = ctx->read16Big(data + pos);
@@ -2167,7 +2167,7 @@ namespace OpenLogReplicator {
 
                 auto dictNmSpcMapIt = dictNmSpcMap.find(dictId);
                 if (dictNmSpcMapIt == dictNmSpcMap.end()) {
-                    ctx->warning(60036, "incorrect XML data: namespace " + dictId + " not found for namespace");
+                    ctx->OLR_WARN(60036, "incorrect XML data: namespace " + dictId + " not found for namespace");
                     return false;
                 }
                 std::string nmSpcId = dictNmSpcMapIt->second;
@@ -2175,7 +2175,7 @@ namespace OpenLogReplicator {
                 // search url
                 auto xdbXNmMapIdIt = xmlCtx->xdbXNmMapId.find(nmSpcId);
                 if (xdbXNmMapIdIt == xmlCtx->xdbXNmMapId.end()) {
-                    ctx->warning(60036, "incorrect XML data: namespace " + nmSpcId + " not found");
+                    ctx->OLR_WARN(60036, "incorrect XML data: namespace " + nmSpcId + " not found");
                     return false;
                 }
 
@@ -2213,7 +2213,7 @@ namespace OpenLogReplicator {
                 ++pos;
 
                 if (pos + 8U >= size) {
-                    ctx->warning(60036, "incorrect XML data: string too short, can't read 8B");
+                    ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 8B");
                     return false;
                 }
 
@@ -2221,7 +2221,7 @@ namespace OpenLogReplicator {
                 pos += 8;
 
                 if (pos + tagSize >= size) {
-                    ctx->warning(60036, "incorrect XML data: string too short, can't read 8B data");
+                    ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read 8B data");
                     return false;
                 }
 
@@ -2242,7 +2242,7 @@ namespace OpenLogReplicator {
                 ++pos;
 
                 if (pos + tagSize >= size) {
-                    ctx->warning(60036, "incorrect XML data: string too short, can't read value data");
+                    ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't read value data");
                     return false;
                 }
 
@@ -2260,7 +2260,7 @@ namespace OpenLogReplicator {
                     tagOpen = true;
                 } else {
                     if (tags.size() == 0) {
-                        ctx->warning(60036, "incorrect XML data: end tag found, but no tags open");
+                        ctx->OLR_WARN(60036, "incorrect XML data: end tag found, but no tags open");
                         return false;
                     }
                     lastTag = tags.back();
@@ -2295,7 +2295,7 @@ namespace OpenLogReplicator {
             if (data[pos] == 0xA0)
                 break;
 
-            ctx->warning(60036, "incorrect XML data: string too short, can't decode code: " + std::to_string(data[pos]) + " at pos: " +
+            ctx->OLR_WARN(60036, "incorrect XML data: string too short, can't decode code: " + std::to_string(data[pos]) + " at pos: " +
                                 std::to_string(pos));
             return false;
         }
@@ -2309,7 +2309,7 @@ namespace OpenLogReplicator {
 
     void Builder::sleepForWriterWork(uint64_t queueSize, uint64_t nanoseconds) {
         if (unlikely(ctx->trace & Ctx::TRACE_SLEEP))
-            ctx->logTrace(Ctx::TRACE_SLEEP, "Builder:sleepForWriterWork");
+            ctx->OLR_TRACE(Ctx::TRACE_SLEEP, "Builder:sleepForWriterWork");
 
         std::unique_lock<std::mutex> lck(mtx);
         if (queueSize > 0)

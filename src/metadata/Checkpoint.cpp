@@ -62,7 +62,7 @@ namespace OpenLogReplicator {
         if (configFileStat.st_mtime == configFileChange)
             return;
 
-        ctx->info(0, "config file changed, reloading");
+        ctx->OLR_INFO(0, "config file changed, reloading");
 
         try {
             int fid = open(configFileName.c_str(), O_RDONLY);
@@ -89,9 +89,9 @@ namespace OpenLogReplicator {
             configFileBuffer = nullptr;
 
         } catch (ConfigurationException& ex) {
-            ctx->error(ex.code, ex.msg);
+            ctx->OLR_ERROR(ex.code, ex.msg);
         } catch (DataException& ex) {
-            ctx->error(ex.code, ex.msg);
+            ctx->OLR_ERROR(ex.code, ex.msg);
         }
 
         configFileChange = configFileStat.st_mtime;
@@ -143,7 +143,7 @@ namespace OpenLogReplicator {
                 if (!ctx->isFlagSet(Ctx::REDO_FLAGS_SCHEMALESS) && (debugJson.HasMember("owner") || debugJson.HasMember("table"))) {
                     debugOwner = Ctx::getJsonFieldS(configFileName, SysUser::NAME_LENGTH, debugJson, "owner");
                     debugTable = Ctx::getJsonFieldS(configFileName, SysObj::NAME_LENGTH, debugJson, "table");
-                    ctx->info(0, "will shutdown after committed DML in " + std::string(debugOwner) + "." + debugTable);
+                    ctx->OLR_INFO(0, "will shutdown after committed DML in " + std::string(debugOwner) + "." + debugTable);
                 }
             }
 
@@ -199,7 +199,7 @@ namespace OpenLogReplicator {
             }
         }
 
-        ctx->info(0, "scanning objects which match the configuration file");
+        ctx->OLR_INFO(0, "scanning objects which match the configuration file");
         // Suspend transaction processing for the schema update
         {
             std::unique_lock<std::mutex> lckTransaction(metadata->mtxTransaction);
@@ -221,7 +221,7 @@ namespace OpenLogReplicator {
                                             metadata->defaultCharacterNcharMapId);
             }
             for (const auto& msg: msgs) {
-                ctx->info(0, "- found: " + msg);
+                ctx->OLR_INFO(0, "- found: " + msg);
             }
 
             metadata->schema->resetTouched();
@@ -232,7 +232,7 @@ namespace OpenLogReplicator {
         if (unlikely(ctx->trace & Ctx::TRACE_THREADS)) {
             std::ostringstream ss;
             ss << std::this_thread::get_id();
-            ctx->logTrace(Ctx::TRACE_THREADS, "checkpoint (" + ss.str() + ") start");
+            ctx->OLR_TRACE(Ctx::TRACE_THREADS, "checkpoint (" + ss.str() + ") start");
         }
 
         try {
@@ -250,7 +250,7 @@ namespace OpenLogReplicator {
 
                 {
                     if (unlikely(ctx->trace & Ctx::TRACE_SLEEP))
-                        ctx->logTrace(Ctx::TRACE_SLEEP, "Checkpoint:run lastCheckpointScn: " + std::to_string(metadata->lastCheckpointScn) +
+                        ctx->OLR_TRACE(Ctx::TRACE_SLEEP, "Checkpoint:run lastCheckpointScn: " + std::to_string(metadata->lastCheckpointScn) +
                                                         " checkpointScn: " + std::to_string(metadata->checkpointScn));
 
                     std::unique_lock<std::mutex> lck(mtx);
@@ -262,17 +262,17 @@ namespace OpenLogReplicator {
                 metadata->writeCheckpoint(true);
 
         } catch (RuntimeException& ex) {
-            ctx->error(ex.code, ex.msg);
+            ctx->OLR_ERROR(ex.code, ex.msg);
             ctx->stopHard();
         } catch (std::bad_alloc& ex) {
-            ctx->error(10018, "memory allocation failed: " + std::string(ex.what()));
+            ctx->OLR_ERROR(10018, "memory allocation failed: " + std::string(ex.what()));
             ctx->stopHard();
         }
 
         if (unlikely(ctx->trace & Ctx::TRACE_THREADS)) {
             std::ostringstream ss;
             ss << std::this_thread::get_id();
-            ctx->logTrace(Ctx::TRACE_THREADS, "checkpoint (" + ss.str() + ") stop");
+            ctx->OLR_TRACE(Ctx::TRACE_THREADS, "checkpoint (" + ss.str() + ") stop");
         }
     }
 }

@@ -69,7 +69,7 @@ namespace OpenLogReplicator {
             xdbXNmTmp(nullptr),
             xdbXPtTmp(nullptr),
             xdbXQnTmp(nullptr) {
-        ctx->logTrace(Ctx::TRACE_SYSTEM, "begin");
+        ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "begin");
     }
 
     SystemTransaction::~SystemTransaction() {
@@ -181,12 +181,12 @@ namespace OpenLogReplicator {
             builder->valueBuffer[builder->valueSize] = 0;
             auto newVal = static_cast<int16_t>(strtol(builder->valueBuffer, &retPtr, 10));
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
                                                  std::to_string(newVal) + ")");
             val = newVal;
         } else if (builder->values[column][Builder::Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
             val = defVal;
         }
     }
@@ -208,12 +208,12 @@ namespace OpenLogReplicator {
 
             uint16_t newVal = strtoul(builder->valueBuffer, &retPtr, 10);
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
                                             std::to_string(newVal) + ")");
             val = newVal;
         } else if (builder->values[column][Builder::Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
             val = defVal;
         }
     }
@@ -234,12 +234,12 @@ namespace OpenLogReplicator {
 
             uint32_t newVal = strtoul(builder->valueBuffer, &retPtr, 10);
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
                                                  std::to_string(newVal) + ")");
             val = newVal;
         } else if (builder->values[column][Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
             val = defVal;
         }
     }
@@ -260,12 +260,12 @@ namespace OpenLogReplicator {
 
             int64_t newVal = strtol(builder->valueBuffer, &retPtr, 10);
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
                                                  std::to_string(newVal) + ")");
             val = newVal;
         } else if (builder->values[column][Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
             val = defVal;
         }
     }
@@ -286,12 +286,12 @@ namespace OpenLogReplicator {
 
             uint64_t newVal = strtoul(builder->valueBuffer, &retPtr, 10);
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> " +
                                                  std::to_string(newVal) + ")");
             val = newVal;
         } else if (builder->values[column][Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + std::to_string(val) + " -> NULL)");
             val = defVal;
         }
     }
@@ -313,14 +313,14 @@ namespace OpenLogReplicator {
             std::string err;
             newVal.setStr(builder->valueBuffer, builder->valueSize, err);
             if (err != "")
-                ctx->error(50021, err);
+                ctx->OLR_ERROR(50021, err);
 
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + val.toString() + " -> " + newVal.toString() + ")");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + val.toString() + " -> " + newVal.toString() + ")");
             val = newVal;
         } else if (builder->values[column][Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + val.toString() + " -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": " + val.toString() + " -> NULL)");
             val.set(0, 0);
         }
     }
@@ -340,11 +340,11 @@ namespace OpenLogReplicator {
                                               std::to_string(offset));
 
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> '" + newVal + "')");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> '" + newVal + "')");
             val = newVal;
         } else if (builder->values[column][Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> NULL)");
             val.assign("");
         }
     }
@@ -365,11 +365,11 @@ namespace OpenLogReplicator {
                                               std::to_string(offset));
 
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> '" + newVal + "')");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> '" + newVal + "')");
             val = newVal;
         } else if (builder->values[column][Builder::VALUE_AFTER] != nullptr || builder->values[column][Builder::VALUE_BEFORE] != nullptr) {
             if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                ctx->logTrace(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> NULL)");
+                ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "set (" + table->columns[column]->name + ": '" + val + "' -> NULL)");
             val.assign("");
         }
     }
@@ -1059,7 +1059,7 @@ namespace OpenLogReplicator {
         char str[19];
         rowId.toString(str);
         if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-            ctx->logTrace(Ctx::TRACE_SYSTEM, "insert table (name: " + table->owner + "." + table->name + ", rowid: " + rowId.toString() + ")");
+            ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "insert table (name: " + table->owner + "." + table->name + ", rowid: " + rowId.toString() + ")");
 
         switch (table->systemTable) {
             case OracleTable::SYS_CCOL:
@@ -1147,7 +1147,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.CCOL$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.CCOL$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysCColTmp = new SysCCol(rowId, 0, 0, 0, 0, 0);
@@ -1185,7 +1185,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.CDEF$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.CDEF$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysCDefTmp = new SysCDef(rowId, 0, 0, 0);
@@ -1221,7 +1221,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.COL$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.COL$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysColTmp = new SysCol(rowId, 0, 0, 0, 0, "", 0, 0, -1, -1,
@@ -1278,7 +1278,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.DEFERRED_STG$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.DEFERRED_STG$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysDeferredStgTmp = new SysDeferredStg(rowId, 0, 0, 0);
@@ -1312,7 +1312,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.ECOL$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.ECOL$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysEColTmp = new SysECol(rowId, 0, 0, -1);
@@ -1348,7 +1348,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.LOB$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.LOB$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysLobTmp = new SysLob(rowId, 0, 0, 0, 0, 0);
@@ -1388,7 +1388,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.LOBCOMPPART$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.LOBCOMPPART$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysLobCompPartTmp = new SysLobCompPart(rowId, 0, 0);
@@ -1422,7 +1422,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.LOBFRAG$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.LOBFRAG$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysLobFragTmp = new SysLobFrag(rowId, 0, 0, 0);
@@ -1458,7 +1458,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.OBJ$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.OBJ$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysObjTmp = new SysObj(rowId, 0, 0, 0, 0, "", 0, 0, false);
@@ -1500,7 +1500,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TAB$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TAB$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysTabTmp = new SysTab(rowId, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -1542,7 +1542,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TABCOMPART$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TABCOMPART$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysTabComPartTmp = new SysTabComPart(rowId, 0, 0, 0);
@@ -1578,7 +1578,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TABPART$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TABPART$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysTabPartTmp = new SysTabPart(rowId, 0, 0, 0);
@@ -1613,7 +1613,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TABSUBPART$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TABSUBPART$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysTabSubPartTmp = new SysTabSubPart(rowId, 0, 0, 0);
@@ -1649,7 +1649,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TS$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TS$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysTsTmp = new SysTs(rowId, 0, "", 0);
@@ -1685,7 +1685,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.USER$: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.USER$: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             sysUserTmp = new SysUser(rowId, 0, "", 0, 0, false);
@@ -1721,7 +1721,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.XDB$TTSET: (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.XDB$TTSET: (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             xdbTtSetTmp = new XdbTtSet(rowId, "", "", 0, 0);
@@ -1759,7 +1759,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.X$NM" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.X$NM" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             xdbXNmTmp = new XdbXNm(rowId, "", "");
@@ -1793,7 +1793,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.X$PT" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.X$PT" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             xdbXPtTmp = new XdbXPt(rowId, "", "");
@@ -1827,7 +1827,7 @@ namespace OpenLogReplicator {
         } else {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.X$QN" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for update");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.X$QN" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for update");
                 return;
             }
             xdbXQnTmp = new XdbXQn(rowId, "", "", "", "");
@@ -1863,7 +1863,7 @@ namespace OpenLogReplicator {
         char str[19];
         rowId.toString(str);
         if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-            ctx->logTrace(Ctx::TRACE_SYSTEM, "update table (name: " + table->owner + "." + table->name + ", rowid: " + rowId.toString() + ")");
+            ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "update table (name: " + table->owner + "." + table->name + ", rowid: " + rowId.toString() + ")");
 
         switch (table->systemTable) {
             case OracleTable::SYS_CCOL:
@@ -1949,7 +1949,7 @@ namespace OpenLogReplicator {
         if (sysCColTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.CCOL$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.CCOL$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -1965,7 +1965,7 @@ namespace OpenLogReplicator {
         if (sysCDefTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.CDEF$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.CDEF$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -1981,7 +1981,7 @@ namespace OpenLogReplicator {
         if (sysColTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.COL$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.COL$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -1997,7 +1997,7 @@ namespace OpenLogReplicator {
         if (sysDeferredStgTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.DEFERRED_STG$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.DEFERRED_STG$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2013,7 +2013,7 @@ namespace OpenLogReplicator {
         if (sysEColTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.ECOL$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.ECOL$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2029,7 +2029,7 @@ namespace OpenLogReplicator {
         if (sysLobTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.LOB$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.LOB$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2045,7 +2045,7 @@ namespace OpenLogReplicator {
         if (sysLobCompPartTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.LOBCOMPPART$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.LOBCOMPPART$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2061,7 +2061,7 @@ namespace OpenLogReplicator {
         if (sysLobFragTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.LOBFRAG$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.LOBFRAG$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2077,7 +2077,7 @@ namespace OpenLogReplicator {
         if (sysObjTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.OBJ$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.OBJ$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2093,7 +2093,7 @@ namespace OpenLogReplicator {
         if (sysTabTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TAB$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TAB$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2109,7 +2109,7 @@ namespace OpenLogReplicator {
         if (sysTabComPartTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TABCOMPART$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TABCOMPART$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2125,7 +2125,7 @@ namespace OpenLogReplicator {
         if (sysTabPartTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TABPART$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TABPART$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2141,7 +2141,7 @@ namespace OpenLogReplicator {
         if (sysTabSubPartTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TABSUBPART$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TABSUBPART$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2157,7 +2157,7 @@ namespace OpenLogReplicator {
         if (sysTsTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.TS$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.TS$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2172,7 +2172,7 @@ namespace OpenLogReplicator {
         if (sysUserTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing SYS.USER$: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing SYS.USER$: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2188,7 +2188,7 @@ namespace OpenLogReplicator {
         if (xdbTtSetTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.XDB$TTSET: (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.XDB$TTSET: (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2203,7 +2203,7 @@ namespace OpenLogReplicator {
         if (xdbXNmTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.X$NM" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.X$NM" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2218,7 +2218,7 @@ namespace OpenLogReplicator {
         if (xdbXPtTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.X$PT" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.X$PT" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2233,7 +2233,7 @@ namespace OpenLogReplicator {
         if (xdbXQnTmp == nullptr) {
             if (!ctx->isFlagSet(Ctx::REDO_FLAGS_ADAPTIVE_SCHEMA)) {
                 if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-                    ctx->logTrace(Ctx::TRACE_SYSTEM, "missing XDB.X$QN" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for delete");
+                    ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "missing XDB.X$QN" + table->tokSuf + ": (rowid: " + rowId.toString() + ") for delete");
                 return;
             }
         }
@@ -2248,7 +2248,7 @@ namespace OpenLogReplicator {
         char str[19];
         rowId.toString(str);
         if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-            ctx->logTrace(Ctx::TRACE_SYSTEM, "delete table (name: " + table->owner + "." + table->name + ", rowid: " + rowId.toString() + ")");
+            ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "delete table (name: " + table->owner + "." + table->name + ", rowid: " + rowId.toString() + ")");
 
         switch (table->systemTable) {
             case OracleTable::SYS_CCOL:
@@ -2331,7 +2331,7 @@ namespace OpenLogReplicator {
 
     void SystemTransaction::commit(typeScn scn) {
         if (unlikely(ctx->trace & Ctx::TRACE_SYSTEM))
-            ctx->logTrace(Ctx::TRACE_SYSTEM, "commit");
+            ctx->OLR_TRACE(Ctx::TRACE_SYSTEM, "commit");
 
         if (!metadata->schema->touched)
             return;
@@ -2348,10 +2348,10 @@ namespace OpenLogReplicator {
         metadata->schema->resetTouched();
 
         for (const auto& msg: msgsDropped) {
-            ctx->info(0, "dropped metadata: " + msg);
+            ctx->OLR_INFO(0, "dropped metadata: " + msg);
         }
         for (const auto& msg: msgsUpdated) {
-            ctx->info(0, "updated metadata: " + msg);
+            ctx->OLR_INFO(0, "updated metadata: " + msg);
         }
 
         metadata->schema->updateXmlCtx();

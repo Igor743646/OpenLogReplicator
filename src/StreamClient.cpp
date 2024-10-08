@@ -53,7 +53,7 @@ uint64_t receive(OpenLogReplicator::pb::RedoResponse& response, OpenLogReplicato
 
     response.Clear();
     if (decode && !response.ParseFromArray(buffer, length)) {
-        ctx->error(0, "response parse");
+        ctx->OLR_ERROR(0, "response parse");
         exit(0);
     }
 
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
     const char* logTimezone = std::getenv("OLR_LOG_TIMEZONE");
     if (logTimezone != nullptr)
         if (!ctx.parseTimezone(logTimezone, ctx.logTimezone))
-            ctx.error(10070, "invalid environment variable OLR_LOG_TIMEZONE value: " + std::string(logTimezone));
+            ctx.OLR_ERROR(10070, "invalid environment variable OLR_LOG_TIMEZONE value: " + std::string(logTimezone));
 
     ctx.welcome("OpenLogReplicator v." + std::to_string(OpenLogReplicator_VERSION_MAJOR) + "." +
                 std::to_string(OpenLogReplicator_VERSION_MINOR) + "." + std::to_string(OpenLogReplicator_VERSION_PATCH) +
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     //      c:<scn>,<idx> - continue from given SCN and IDX
     //      next - continue with next message, from the position
     if (argc != 6) {
-        ctx.info(0, "use: ClientNetwork [network|zeromq] <uri> <database> <format> [now{,<seq>}|scn:<scn>{,<seq>}|tm_rel:<time>{,<seq>}|"
+        ctx.OLR_INFO(0, "use: ClientNetwork [network|zeromq] <uri> <database> <format> [now{,<seq>}|scn:<scn>{,<seq>}|tm_rel:<time>{,<seq>}|"
                     "tms:<time>{,<seq>}|c:<scn>,<idx>|next]");
         return 0;
     }
@@ -132,10 +132,10 @@ int main(int argc, char** argv) {
 
         request.set_code(OpenLogReplicator::pb::RequestCode::INFO);
         request.set_database_name(argv[3]);
-        ctx.info(0, "database: " + request.database_name());
+        ctx.OLR_INFO(0, "database: " + request.database_name());
         send(request, stream, &ctx);
         receive(response, stream, &ctx, buffer, true);
-        ctx.info(0, "- code: " + std::to_string(static_cast<uint64_t>(response.code())) + ", scn: " + std::to_string(response.scn()) +
+        ctx.OLR_INFO(0, "- code: " + std::to_string(static_cast<uint64_t>(response.code())) + ", scn: " + std::to_string(response.scn()) +
                     ", confirmed: " + std::to_string(response.c_scn()) + "," + std::to_string(response.c_idx()));
 
         request.Clear();
@@ -169,17 +169,17 @@ int main(int argc, char** argv) {
 
             if (strncmp(argv[5], "now", 3) == 0) {
                 request.set_scn(OpenLogReplicator::Ctx::ZERO_SCN);
-                ctx.info(0, "START NOW" + paramSeq);
+                ctx.OLR_INFO(0, "START NOW" + paramSeq);
             } else if (strncmp(argv[5], "scn:", 4) == 0) {
                 request.set_scn(atoi(argv[5] + 4));
-                ctx.info(0, "START scn: " + std::to_string(request.scn()) + paramSeq);
+                ctx.OLR_INFO(0, "START scn: " + std::to_string(request.scn()) + paramSeq);
             } else if (strncmp(argv[5], "tms:", 4) == 0) {
                 std::string tms(argv[5] + 4);
                 request.set_tms(tms);
-                ctx.info(0, "START tms: " + request.tms() + paramSeq);
+                ctx.OLR_INFO(0, "START tms: " + request.tms() + paramSeq);
             } else if (strncmp(argv[5], "tm_rel:", 7) == 0) {
                 request.set_tm_rel(atoi(argv[5] + 7));
-                ctx.info(0, "START tm_rel: " + std::to_string(request.tm_rel()) + paramSeq);
+                ctx.OLR_INFO(0, "START tm_rel: " + std::to_string(request.tm_rel()) + paramSeq);
             } else
                 throw OpenLogReplicator::RuntimeException(1, "server is waiting to define position to start, expected: [now{,<seq>}|"
                                                              "scn:<scn>{,<seq>}|tm_rel:<time>{,<seq>}|tms:<time>{,<seq>}");
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
 
         send(request, stream, &ctx);
         receive(response, stream, &ctx, buffer, true);
-        ctx.info(0, "- code: " + std::to_string(static_cast<uint64_t>(response.code())) + " msg: " + response.DebugString() );
+        ctx.OLR_INFO(0, "- code: " + std::to_string(static_cast<uint64_t>(response.code())) + " msg: " + response.DebugString() );
 
         // Either after start or after continue, the server is expected to start streaming
         if (response.code() != OpenLogReplicator::pb::ResponseCode::REPLICATE)
@@ -240,10 +240,10 @@ int main(int argc, char** argv) {
                         default:
                             msg = "??? UNKNOWN ???";
                     }
-                    ctx.info(0, "- scn: " + std::to_string(response.scn()) + ", idx: " + std::to_string(response.scn()) + ", code: " +
+                    ctx.OLR_INFO(0, "- scn: " + std::to_string(response.scn()) + ", idx: " + std::to_string(response.scn()) + ", code: " +
                                 std::to_string(static_cast<uint64_t>(response.code())) + ", length: " + std::to_string(length) + ", op: " + msg);
                 } else {
-                    ctx.info(0, "- scn: " + std::to_string(response.scn()) + ", code: " +
+                    ctx.OLR_INFO(0, "- scn: " + std::to_string(response.scn()) + ", code: " +
                                 std::to_string(static_cast<uint64_t>(response.code())) + ", length: " + std::to_string(length) +
                                 ", payload size: " + std::to_string(response.payload_size()));
                 }
@@ -261,7 +261,7 @@ int main(int argc, char** argv) {
                 rapidjson::StringBuffer sb;
                 rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
                 document.Accept(writer);
-                ctx.info(0, std::string("message: ") + sb.GetString());
+                ctx.OLR_INFO(0, std::string("message: ") + sb.GetString());
                 cScn = OpenLogReplicator::Ctx::getJsonFieldU64("network", document, "c_scn");
                 cIdx = OpenLogReplicator::Ctx::getJsonFieldU64("network", document, "c_idx");
             }
@@ -277,7 +277,7 @@ int main(int argc, char** argv) {
                 request.set_c_scn(cScn);
                 request.set_c_idx(cIdx);
                 request.set_database_name(argv[3]);
-                ctx.info(0, "CONFIRM scn: " + std::to_string(request.c_scn()) + ", idx: " + std::to_string(request.c_idx()) +
+                ctx.OLR_INFO(0, "CONFIRM scn: " + std::to_string(request.c_scn()) + ", idx: " + std::to_string(request.c_idx()) +
                             ", database: " + request.database_name());
                 send(request, stream, &ctx);
                 num = 0;
@@ -286,15 +286,15 @@ int main(int argc, char** argv) {
         }
 
     } catch (OpenLogReplicator::DataException& ex) {
-        ctx.error(ex.code, "error: " + ex.msg);
+        ctx.OLR_ERROR(ex.code, "error: " + ex.msg);
     } catch (OpenLogReplicator::RuntimeException& ex) {
-        ctx.error(ex.code, "error: " + ex.msg);
+        ctx.OLR_ERROR(ex.code, "error: " + ex.msg);
     } catch (OpenLogReplicator::NetworkException& ex) {
-        ctx.error(ex.code, "error: " + ex.msg);
+        ctx.OLR_ERROR(ex.code, "error: " + ex.msg);
     } catch (OpenLogReplicator::ConfigurationException& ex) {
-        ctx.error(ex.code, "error: " + ex.msg);
+        ctx.OLR_ERROR(ex.code, "error: " + ex.msg);
     } catch (std::bad_alloc& ex) {
-        ctx.error(0, "memory allocation failed: " + std::string(ex.what()));
+        ctx.OLR_ERROR(0, "memory allocation failed: " + std::string(ex.what()));
     }
 
     delete[] buffer;

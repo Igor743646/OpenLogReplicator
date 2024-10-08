@@ -53,24 +53,24 @@ namespace OpenLogReplicator {
     void WriterStream::processInfo() {
         response.Clear();
         if (request.database_name() != database) {
-            ctx->warning(60035, "unknown database requested, got: " + request.database_name() + ", expected: " + database);
+            ctx->OLR_WARN(60035, "unknown database requested, got: " + request.database_name() + ", expected: " + database);
             response.set_code(pb::ResponseCode::INVALID_DATABASE);
             return;
         }
 
         if (metadata->status == Metadata::STATUS_READY) {
-            ctx->logTrace(Ctx::TRACE_WRITER, "info, ready");
+            ctx->OLR_TRACE(Ctx::TRACE_WRITER, "OLR_INFO, ready");
             response.set_code(pb::ResponseCode::READY);
             return;
         }
 
         if (metadata->status == Metadata::STATUS_START) {
-            ctx->logTrace(Ctx::TRACE_WRITER, "info, start");
+            ctx->OLR_TRACE(Ctx::TRACE_WRITER, "OLR_INFO, start");
             response.set_code(pb::ResponseCode::STARTING);
             return;
         }
 
-        ctx->logTrace(Ctx::TRACE_WRITER, "info, first scn: " + std::to_string(metadata->firstDataScn));
+        ctx->OLR_TRACE(Ctx::TRACE_WRITER, "OLR_INFO, first scn: " + std::to_string(metadata->firstDataScn));
         response.set_code(pb::ResponseCode::REPLICATE);
         response.set_scn(metadata->firstDataScn);
         response.set_c_scn(confirmedScn);
@@ -80,13 +80,13 @@ namespace OpenLogReplicator {
     void WriterStream::processStart() {
         response.Clear();
         if (request.database_name() != database) {
-            ctx->warning(60035, "unknown database requested, got: " + request.database_name() + ", expected: " + database);
+            ctx->OLR_WARN(60035, "unknown database requested, got: " + request.database_name() + ", expected: " + database);
             response.set_code(pb::ResponseCode::INVALID_DATABASE);
             return;
         }
 
         if (metadata->status == Metadata::STATUS_REPLICATE) {
-            ctx->logTrace(Ctx::TRACE_WRITER, "client requested start when already started");
+            ctx->OLR_TRACE(Ctx::TRACE_WRITER, "client requested start when already started");
             response.set_code(pb::ResponseCode::ALREADY_STARTED);
             response.set_scn(metadata->firstDataScn);
             response.set_c_scn(confirmedScn);
@@ -95,7 +95,7 @@ namespace OpenLogReplicator {
         }
 
         if (metadata->status == Metadata::STATUS_START) {
-            ctx->logTrace(Ctx::TRACE_WRITER, "client requested start when already starting");
+            ctx->OLR_TRACE(Ctx::TRACE_WRITER, "client requested start when already starting");
             response.set_code(pb::ResponseCode::STARTING);
             return;
         }
@@ -115,23 +115,23 @@ namespace OpenLogReplicator {
             case pb::RedoRequest::TmValCase::kScn:
                 metadata->startScn = request.scn();
                 if (metadata->startScn == Ctx::ZERO_SCN)
-                    ctx->info(0, "client requested to start from NOW" + paramSeq);
+                    ctx->OLR_INFO(0, "client requested to start from NOW" + paramSeq);
                 else
-                    ctx->info(0, "client requested to start from scn: " + std::to_string(metadata->startScn) + paramSeq);
+                    ctx->OLR_INFO(0, "client requested to start from scn: " + std::to_string(metadata->startScn) + paramSeq);
                 break;
 
             case pb::RedoRequest::TmValCase::kTms:
                 metadata->startTime = request.tms();
-                ctx->info(0, "client requested to start from time: " + metadata->startTime + paramSeq);
+                ctx->OLR_INFO(0, "client requested to start from time: " + metadata->startTime + paramSeq);
                 break;
 
             case pb::RedoRequest::TmValCase::kTmRel:
                 metadata->startTimeRel = request.tm_rel();
-                ctx->info(0, "client requested to start from relative time: " + std::to_string(metadata->startTimeRel) + paramSeq);
+                ctx->OLR_INFO(0, "client requested to start from relative time: " + std::to_string(metadata->startTimeRel) + paramSeq);
                 break;
 
             default:
-                ctx->logTrace(Ctx::TRACE_WRITER, "client requested an invalid starting point");
+                ctx->OLR_TRACE(Ctx::TRACE_WRITER, "client requested an invalid starting point");
                 response.set_code(pb::ResponseCode::INVALID_COMMAND);
                 return;
         }
@@ -145,10 +145,10 @@ namespace OpenLogReplicator {
             response.set_c_scn(confirmedScn);
             response.set_c_idx(confirmedIdx);
 
-            ctx->info(0, "streaming to client");
+            ctx->OLR_INFO(0, "streaming to client");
             streaming = true;
         } else {
-            ctx->logTrace(Ctx::TRACE_WRITER, "starting failed");
+            ctx->OLR_TRACE(Ctx::TRACE_WRITER, "starting failed");
             response.set_code(pb::ResponseCode::FAILED_START);
         }
     }
@@ -156,7 +156,7 @@ namespace OpenLogReplicator {
     void WriterStream::processContinue() {
         response.Clear();
         if (request.database_name() != database) {
-            ctx->warning(60035, "unknown database requested, got: " + std::string(request.database_name()) + " instead of " + database);
+            ctx->OLR_WARN(60035, "unknown database requested, got: " + std::string(request.database_name()) + " instead of " + database);
             response.set_code(pb::ResponseCode::INVALID_DATABASE);
             return;
         }
@@ -174,17 +174,17 @@ namespace OpenLogReplicator {
                 metadata->clientIdx = request.c_idx();
             paramIdx = ", idx: " + std::to_string(metadata->clientIdx);
         }
-        ctx->info(0, "client requested scn: " + std::to_string(metadata->clientScn) + paramIdx);
+        ctx->OLR_INFO(0, "client requested scn: " + std::to_string(metadata->clientScn) + paramIdx);
 
         //resetMessageQueue();
         response.set_code(pb::ResponseCode::REPLICATE);
-        ctx->info(0, "streaming to client");
+        ctx->OLR_INFO(0, "streaming to client");
         streaming = true;
     }
 
     void WriterStream::processConfirm() {
         if (request.database_name() != database) {
-            ctx->warning(60035, "unknown database confirmed, got: " + request.database_name() + ", expected: " + database);
+            ctx->OLR_WARN(60035, "unknown database confirmed, got: " + request.database_name() + ", expected: " + database);
             return;
         }
 
@@ -213,7 +213,7 @@ namespace OpenLogReplicator {
                     options.always_print_primitive_fields = true;
                     options.preserve_proto_field_names = true;
                     MessageToJsonString(request, &json_str, options);
-                    ctx->logTrace(Ctx::TRACE_WRITER, "request: " + json_str);
+                    ctx->OLR_TRACE(Ctx::TRACE_WRITER, "request: " + json_str);
                 }
 
                 if (streaming) {
@@ -230,7 +230,7 @@ namespace OpenLogReplicator {
                             break;
 
                         default:
-                            ctx->warning(60032, "unknown request code: " + std::to_string(request.code()));
+                            ctx->OLR_WARN(60032, "unknown request code: " + std::to_string(request.code()));
                             response.Clear();
                             response.set_code(pb::ResponseCode::INVALID_COMMAND);
                             response.SerializeToString(&msgS);
@@ -258,7 +258,7 @@ namespace OpenLogReplicator {
                             break;
 
                         default:
-                            ctx->warning(60032, "unknown request code: " + std::to_string(request.code()));
+                            ctx->OLR_WARN(60032, "unknown request code: " + std::to_string(request.code()));
                             response.Clear();
                             response.set_code(pb::ResponseCode::INVALID_COMMAND);
                             response.SerializeToString(&msgS);
@@ -271,14 +271,14 @@ namespace OpenLogReplicator {
                 ss << "request decoder[" << std::dec << size << "]: ";
                 for (uint64_t i = 0; i < static_cast<uint64_t>(size); ++i)
                     ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint64_t>(msgR[i]) << " ";
-                ctx->warning(60033, ss.str());
+                ctx->OLR_WARN(60033, ss.str());
             }
         } else if (errno != EAGAIN)
             throw NetworkException(10061, "network error, errno: " + std::to_string(errno) + ", message: " + strerror(errno));
     }
 
     void WriterStream::sendMessage(BuilderMessageHeader* msg) {
-        ctx->logTrace(Ctx::TRACE_WRITER, "send msg: " + msg->ToString());
+        ctx->OLR_TRACE(Ctx::TRACE_WRITER, "send msg: " + msg->ToString());
         stream->sendMessage(msg->data, msg->size);
     }
 }

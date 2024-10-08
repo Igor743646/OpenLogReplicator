@@ -56,10 +56,10 @@ namespace OpenLogReplicator {
             case OCI_SUCCESS_WITH_INFO:
                 OCIErrorGet(errhp, 1, nullptr, &errcode1, errbuf1, sizeof(errbuf1), OCI_HTYPE_ERROR);
                 if (errcode1 != 100)
-                    ctx->warning(70006, "OCI: " + std::string(reinterpret_cast<const char*>(errbuf1)));
+                    ctx->OLR_WARN(70006, "OCI: " + std::string(reinterpret_cast<const char*>(errbuf1)));
                 OCIErrorGet(errhp, 2, nullptr, &errcode2, errbuf2, sizeof(errbuf2), OCI_HTYPE_ERROR);
                 if (errcode2 != 100)
-                    ctx->warning(70006, "OCI: " + std::string(reinterpret_cast<const char*>(errbuf1)));
+                    ctx->OLR_WARN(70006, "OCI: " + std::string(reinterpret_cast<const char*>(errbuf1)));
                 break;
 
             case OCI_NEED_DATA:
@@ -83,7 +83,7 @@ namespace OpenLogReplicator {
                     errbuf2[len - 1] = 0;
 
                 if (errcode2 != 100)
-                    ctx->error(10051, "OCI: [" + std::string(reinterpret_cast<const char*>(errbuf2)) + "]");
+                    ctx->OLR_ERROR(10051, "OCI: [" + std::string(reinterpret_cast<const char*>(errbuf2)) + "]");
                 throw RuntimeException(10051, "OCI: [" + std::string(reinterpret_cast<const char*>(errbuf1)) + "]", errcode1);
 
             case OCI_INVALID_HANDLE:

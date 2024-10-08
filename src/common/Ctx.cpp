@@ -700,10 +700,10 @@ namespace OpenLogReplicator {
         if (memoryChunksFree == 0) {
             while (memoryChunksAllocated == memoryChunksMax && !softShutdown) {
                 if (likely(memoryChunksReusable > 1)) {
-                    warning(10067, "out of memory, but there are reusable memory chunks, trying to reuse some memory");
+                    OLR_WARN(10067, "out of memory, but there are reusable memory chunks, trying to reuse some memory");
 
                     if (unlikely(trace & TRACE_SLEEP))
-                        logTrace(TRACE_SLEEP, "Ctx:getMemoryChunk");
+                        OLR_TRACE(TRACE_SLEEP, "Ctx:getMemoryChunk");
                     condOutOfMemory.wait(lck);
                 } else {
                     hint("try to restart with higher value of 'memory-max-mb' parameter or if big transaction - add to 'skip-xid' list; "
@@ -804,7 +804,7 @@ namespace OpenLogReplicator {
     }
 
     void Ctx::stopHard() {
-        logTrace(TRACE_THREADS, "stop hard");
+        OLR_TRACE(TRACE_THREADS, "stop hard");
 
         {
             std::unique_lock<std::mutex> lck(mtx);
@@ -823,7 +823,7 @@ namespace OpenLogReplicator {
     }
 
     void Ctx::stopSoft() {
-        logTrace(TRACE_THREADS, "stop soft");
+        OLR_TRACE(TRACE_THREADS, "stop soft");
 
         std::unique_lock<std::mutex> lck(mtx);
         if (softShutdown)
@@ -834,7 +834,7 @@ namespace OpenLogReplicator {
     }
 
     void Ctx::mainFinish() {
-        logTrace(TRACE_THREADS, "main finish start");
+        OLR_TRACE(TRACE_THREADS, "main finish start");
 
         while (wakeThreads()) {
             usleep(10000);
@@ -850,52 +850,52 @@ namespace OpenLogReplicator {
             finishThread(thread);
         }
 
-        logTrace(TRACE_THREADS, "main finish end");
+        OLR_TRACE(TRACE_THREADS, "main finish end");
     }
 
     void Ctx::mainLoop() {
-        logTrace(TRACE_THREADS, "main loop start");
+        OLR_TRACE(TRACE_THREADS, "main loop start");
 
         {
             std::unique_lock<std::mutex> lck(mtx);
             if (!hardShutdown) {
                 if (unlikely(trace & TRACE_SLEEP))
-                    logTrace(TRACE_SLEEP, "Ctx:mainLoop");
+                    OLR_TRACE(TRACE_SLEEP, "Ctx:mainLoop");
                 condMainLoop.wait(lck);
             }
         }
 
-        logTrace(TRACE_THREADS, "main loop end");
+        OLR_TRACE(TRACE_THREADS, "main loop end");
     }
 
     void Ctx::printStacktrace() {
         void* array[128];
         int size;
-        error(10014, "stacktrace for thread: " + std::to_string(reinterpret_cast<uint64_t>(pthread_self())));
+        OLR_ERROR(10014, "stacktrace for thread: " + std::to_string(reinterpret_cast<uint64_t>(pthread_self())));
         {
             std::unique_lock<std::mutex> lck(mtx);
             size = backtrace(array, 128);
         }
         backtrace_symbols_fd(array, size, STDERR_FILENO);
-        error(10014, "stacktrace for thread: completed");
+        OLR_ERROR(10014, "stacktrace for thread: completed");
     }
 
     void Ctx::signalHandler(int s) {
         if (!hardShutdown) {
-            error(10015, "caught signal: " + std::to_string(s));
+            OLR_ERROR(10015, "caught signal: " + std::to_string(s));
             stopHard();
         }
     }
 
     bool Ctx::wakeThreads() {
-        logTrace(TRACE_THREADS, "wake threads");
+        OLR_TRACE(TRACE_THREADS, "wake threads");
 
         bool wakingUp = false;
         {
             std::unique_lock<std::mutex> lck(mtx);
             for (Thread* thread: threads) {
                 if (!thread->finished) {
-                    logTrace(TRACE_THREADS, "waking up thread: " + thread->alias);
+                    OLR_TRACE(TRACE_THREADS, "waking up thread: " + thread->alias);
                     thread->wakeUp();
                     wakingUp = true;
                 }
@@ -907,7 +907,7 @@ namespace OpenLogReplicator {
     }
 
     void Ctx::spawnThread(Thread* thread) {
-        logTrace(TRACE_THREADS, "spawn: " + thread->alias);
+        OLR_TRACE(TRACE_THREADS, "spawn: " + thread->alias);
 
         if (unlikely(pthread_create(&thread->pthread, nullptr, &Thread::runStatic, reinterpret_cast<void*>(thread))))
             throw RuntimeException(10013, "spawning thread: " + thread->alias);
@@ -918,7 +918,7 @@ namespace OpenLogReplicator {
     }
 
     void Ctx::finishThread(Thread* thread) {
-        logTrace(TRACE_THREADS, "finish: " + thread->alias);
+        OLR_TRACE(TRACE_THREADS, "finish: " + thread->alias);
 
         std::unique_lock<std::mutex> lck(mtx);
         if (threads.find(thread) == threads.end())
@@ -1018,75 +1018,50 @@ namespace OpenLogReplicator {
         }
     }
 
-    void Ctx::error(int code, const std::string& message) const {
+    void Ctx::message(int code, const std::string& msg, const char* type, const char* file, const int line) const {
+        std::ostringstream s;
+        s << std::left << std::setw(25) << file << '(' << line << ")\t";
+
+        if (OLR_LOCALES == OLR_LOCALES_TIMESTAMP) {
+            char timestamp[30];
+            epochToIso8601(clock->getTimeT() + logTimezone, timestamp, false, false);
+            s << timestamp << " ";
+        }
+        
+        s << type << " ";
+        s << std::setw(5) << std::setfill('0') << std::dec << code << " " << msg << std::endl;
+        std::cerr << s.str();
+    }
+
+    void Ctx::error(int code, const std::string& msg, const char* file, const int line) const {
         if (logLevel < LOG_LEVEL_ERROR)
             return;
 
-        if (OLR_LOCALES == OLR_LOCALES_TIMESTAMP) {
-            std::ostringstream s;
-            char timestamp[30];
-            epochToIso8601(clock->getTimeT() + logTimezone, timestamp, false, false);
-            s << timestamp << " ERROR " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        } else {
-            std::ostringstream s;
-            s << "ERROR " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        }
+        message(code, msg, "ERROR", file, line);
     }
 
-    void Ctx::warning(int code, const std::string& message) const {
+    void Ctx::warning(int code, const std::string& msg, const char* file, const int line) const {
         if (logLevel < LOG_LEVEL_WARNING)
             return;
 
-        if (OLR_LOCALES == OLR_LOCALES_TIMESTAMP) {
-            std::ostringstream s;
-            char timestamp[30];
-            epochToIso8601(clock->getTimeT() + logTimezone, timestamp, false, false);
-            s << timestamp << " WARN  " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        } else {
-            std::ostringstream s;
-            s << "WARN  " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        }
+        message(code, msg, "WARN", file, line);
     }
 
-    void Ctx::info(int code, const std::string& message) const {
+    void Ctx::info(int code, const std::string& msg, const char* file, const int line) const {
         if (logLevel < LOG_LEVEL_INFO)
             return;
 
-        if (OLR_LOCALES == OLR_LOCALES_TIMESTAMP) {
-            std::ostringstream s;
-            char timestamp[30];
-            epochToIso8601(clock->getTimeT() + logTimezone, timestamp, false, false);
-            s << timestamp << " INFO  " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        } else {
-            std::ostringstream s;
-            s << "INFO  " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        }
+        message(code, msg, "INFO", file, line);
     }
 
-    void Ctx::debug(int code, const std::string& message) const {
+    void Ctx::debug(int code, const std::string& msg, const char* file, const int line) const {
         if (logLevel < LOG_LEVEL_DEBUG)
             return;
 
-        if (OLR_LOCALES == OLR_LOCALES_TIMESTAMP) {
-            std::ostringstream s;
-            char timestamp[30];
-            epochToIso8601(clock->getTimeT() + logTimezone, timestamp, false, false);
-            s << timestamp << " DEBUG " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        } else {
-            std::ostringstream s;
-            s << "DEBUG " << std::setw(5) << std::setfill('0') << std::dec << code << " " << message << std::endl;
-            std::cerr << s.str();
-        }
+        message(code, msg, "DEBUG", file, line);
     }
 
-    void Ctx::logTrace(uint64_t mask, const std::string& message) const {
+    void Ctx::logTrace(uint64_t mask, const std::string& message, const char* file, const int line) const {
         const char* code = "XXXXX";
         if (likely((trace & mask) == 0))
             return;
@@ -1165,16 +1140,14 @@ namespace OpenLogReplicator {
                 break;
         }
 
+        std::ostringstream s;
+        s << std::left << std::setw(25) << file << '(' << line << ")\t";
         if (OLR_LOCALES == OLR_LOCALES_TIMESTAMP) {
-            std::ostringstream s;
             char timestamp[30];
             epochToIso8601(clock->getTimeT() + logTimezone, timestamp, false, false);
-            s << timestamp << " TRACE " << code << " " << message << '\n';
-            std::cerr << s.str();
-        } else {
-            std::ostringstream s;
-            s << "TRACE " << code << " " << message << '\n';
-            std::cerr << s.str();
+            s << timestamp << " ";
         }
+        s  << "TRACE " << code << " " << message << '\n';
+        std::cerr << s.str();
     }
 }

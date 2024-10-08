@@ -149,17 +149,17 @@ namespace OpenLogReplicator {
                 if (getuid() == 0) {
                     if (!forceRoot)
                         throw RuntimeException(10020, "program is run as root, you should never do that");
-                    mainCtx->warning(10020, "program is run as root, you should never do that");
+                    mainCtx->OLR_WARN(10020, "program is run as root, you should never do that");
                 }
 
                 throw ConfigurationException(30002, "invalid arguments, run: " + std::string(argv[0]) +
                                                              " [-v|--version] [-f|--file CONFIG] [-p|--process PROCESSNAME]");
             }
         } catch (ConfigurationException& ex) {
-            mainCtx->error(ex.code, ex.msg);
+            mainCtx->OLR_ERROR(ex.code, ex.msg);
             return 1;
         } catch (RuntimeException& ex) {
-            mainCtx->error(ex.code, ex.msg);
+            mainCtx->OLR_ERROR(ex.code, ex.msg);
             return 1;
         }
 
@@ -167,16 +167,16 @@ namespace OpenLogReplicator {
         try {
             ret = openLogReplicator.run();
         } catch (ConfigurationException& ex) {
-            mainCtx->error(ex.code, ex.msg);
+            mainCtx->OLR_ERROR(ex.code, ex.msg);
             mainCtx->stopHard();
         } catch (DataException& ex) {
-            mainCtx->error(ex.code, ex.msg);
+            mainCtx->OLR_ERROR(ex.code, ex.msg);
             mainCtx->stopHard();
         } catch (RuntimeException& ex) {
-            mainCtx->error(ex.code, ex.msg);
+            mainCtx->OLR_ERROR(ex.code, ex.msg);
             mainCtx->stopHard();
         } catch (std::bad_alloc& ex) {
-            mainCtx->error(10018, "memory allocation failed: " + std::string(ex.what()));
+            mainCtx->OLR_ERROR(10018, "memory allocation failed: " + std::string(ex.what()));
             mainCtx->stopHard();
         }
 
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
     const char* logTimezone = std::getenv("OLR_LOG_TIMEZONE");
     if (logTimezone != nullptr)
         if (!ctx.parseTimezone(logTimezone, ctx.logTimezone))
-            ctx.warning(10070, "invalid environment variable OLR_LOG_TIMEZONE value: " + std::string(logTimezone));
+            ctx.OLR_WARN(10070, "invalid environment variable OLR_LOG_TIMEZONE value: " + std::string(logTimezone));
 
     std::string olrLocales;
     const char* olrLocalesStr = getenv("OLR_LOCALES");

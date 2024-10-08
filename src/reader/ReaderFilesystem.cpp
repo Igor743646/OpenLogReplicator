@@ -52,7 +52,7 @@ namespace OpenLogReplicator {
         struct stat fileStat;
 
         if (stat(fileName.c_str(), &fileStat) != 0) {
-            ctx->error(10003, "file: " + fileName + " - get metadata returned: " + strerror(errno));
+            ctx->OLR_ERROR(10003, "file: " + fileName + " - get metadata returned: " + strerror(errno));
             return REDO_ERROR;
         }
 
@@ -60,7 +60,7 @@ namespace OpenLogReplicator {
         fileSize = fileStat.st_size;
         if ((fileSize & (Ctx::MEMORY_ALIGNMENT - 1)) != 0) {
             fileSize &= ~(Ctx::MEMORY_ALIGNMENT - 1);
-            ctx->warning(10071, "file: " + fileName + " size is not a multiplication of " + std::to_string(Ctx::MEMORY_ALIGNMENT) + ", reading only " +
+            ctx->OLR_WARN(10071, "file: " + fileName + " size is not a multiplication of " + std::to_string(Ctx::MEMORY_ALIGNMENT) + ", reading only " +
                     std::to_string(fileSize) + " bytes ");
         }
 
@@ -71,7 +71,7 @@ namespace OpenLogReplicator {
 
         fileDescriptor = open(fileName.c_str(), flags);
         if (fileDescriptor == -1) {
-            ctx->error(10001, "file: " + fileName + " - open for read returned: " + strerror(errno));
+            ctx->OLR_ERROR(10001, "file: " + fileName + " - open for read returned: " + strerror(errno));
             return REDO_ERROR;
         }
 
@@ -97,7 +97,7 @@ namespace OpenLogReplicator {
                 break;
             bytes = pread(fileDescriptor, buf, size, static_cast<int64_t>(offset));
             if (unlikely(ctx->trace & Ctx::TRACE_FILE))
-                ctx->logTrace(Ctx::TRACE_FILE, "read " + fileName + ", " + std::to_string(offset) + ", " + std::to_string(size) +
+                ctx->OLR_TRACE(Ctx::TRACE_FILE, "read " + fileName + ", " + std::to_string(offset) + ", " + std::to_string(size) +
                                                " returns " + std::to_string(bytes));
 
             if (bytes > 0)
@@ -107,12 +107,12 @@ namespace OpenLogReplicator {
             if (bytes == -1 && errno != ENOTCONN)
                 break;
 
-            ctx->error(10005, "file: " + fileName + " - " + std::to_string(bytes) + " bytes read instead of " + std::to_string(size));
+            ctx->OLR_ERROR(10005, "file: " + fileName + " - " + std::to_string(bytes) + " bytes read instead of " + std::to_string(size));
 
             if (ctx->hardShutdown)
                 break;
 
-            ctx->info(0, "sleeping " + std::to_string(ctx->archReadSleepUs) + " us before retrying read");
+            ctx->OLR_INFO(0, "sleeping " + std::to_string(ctx->archReadSleepUs) + " us before retrying read");
             usleep(ctx->archReadSleepUs);
             --tries;
         }

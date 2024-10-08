@@ -69,7 +69,7 @@ namespace OpenLogReplicator {
         if (currentQueueSize > maxQueueSize)
             maxQueueSize = currentQueueSize;
 
-        ctx->logTrace(Ctx::TRACE_WRITER, "new message: " + msg->ToString());
+        ctx->OLR_TRACE(Ctx::TRACE_WRITER, "new message: " + msg->ToString());
     }
 
     void Writer::sortQueue() {
@@ -127,7 +127,7 @@ namespace OpenLogReplicator {
 
         if (msg == nullptr) {
             if (currentQueueSize == 0) {
-                ctx->warning(70007, "trying to confirm an empty message");
+                ctx->OLR_WARN(70007, "trying to confirm an empty message");
                 return;
             }
             msg = queue[0];
@@ -179,10 +179,10 @@ namespace OpenLogReplicator {
         if (unlikely(ctx->trace & Ctx::TRACE_THREADS)) {
             std::ostringstream ss;
             ss << std::this_thread::get_id();
-            ctx->logTrace(Ctx::TRACE_THREADS, "writer (" + ss.str() + ") start");
+            ctx->OLR_TRACE(Ctx::TRACE_THREADS, "writer (" + ss.str() + ") start");
         }
 
-        ctx->info(0, "writer is starting with " + getName());
+        ctx->OLR_INFO(0, "writer is starting with " + getName());
 
         try {
             // Before anything, read the latest checkpoint
@@ -198,7 +198,7 @@ namespace OpenLogReplicator {
 
                     // Client disconnected
                 } catch (NetworkException& ex) {
-                    ctx->warning(ex.code, ex.msg);
+                    ctx->OLR_WARN(ex.code, ex.msg);
                     streaming = false;
                 }
 
@@ -206,18 +206,18 @@ namespace OpenLogReplicator {
                     break;
             }
         } catch (DataException& ex) {
-            ctx->error(ex.code, ex.msg);
+            ctx->OLR_ERROR(ex.code, ex.msg);
             ctx->stopHard();
         } catch (RuntimeException& ex) {
-            ctx->error(ex.code, ex.msg);
+            ctx->OLR_ERROR(ex.code, ex.msg);
             ctx->stopHard();
         }
 
-        ctx->info(0, "writer is stopping: " + getName() + ", max queue size: " + std::to_string(maxQueueSize));
+        ctx->OLR_INFO(0, "writer is stopping: " + getName() + ", max queue size: " + std::to_string(maxQueueSize));
         if (unlikely(ctx->trace & Ctx::TRACE_THREADS)) {
             std::ostringstream ss;
             ss << std::this_thread::get_id();
-            ctx->logTrace(Ctx::TRACE_THREADS, "writer (" + ss.str() + ") stop");
+            ctx->OLR_TRACE(Ctx::TRACE_THREADS, "writer (" + ss.str() + ") stop");
         }
     }
 
@@ -236,7 +236,7 @@ namespace OpenLogReplicator {
                     break;
 
                 if (unlikely(ctx->trace & Ctx::TRACE_WRITER))
-                    ctx->logTrace(Ctx::TRACE_WRITER, "waiting for client");
+                    ctx->OLR_TRACE(Ctx::TRACE_WRITER, "waiting for client");
                 usleep(ctx->pollIntervalUs);
             }
 
@@ -277,7 +277,7 @@ namespace OpenLogReplicator {
                 pollQueue();
                 while (currentQueueSize >= ctx->queueSize && !ctx->hardShutdown) {
                     if (unlikely(ctx->trace & Ctx::TRACE_WRITER))
-                        ctx->logTrace(Ctx::TRACE_WRITER, "output queue is full (" + std::to_string(currentQueueSize) +
+                        ctx->OLR_TRACE(Ctx::TRACE_WRITER, "output queue is full (" + std::to_string(currentQueueSize) +
                                                          " elements), sleeping " + std::to_string(ctx->pollIntervalUs) + "us");
                     usleep(ctx->pollIntervalUs);
                     pollQueue();
@@ -379,10 +379,10 @@ namespace OpenLogReplicator {
 
         if (unlikely(ctx->trace & Ctx::TRACE_CHECKPOINT)) {
             if (checkpointScn == Ctx::ZERO_SCN)
-                ctx->logTrace(Ctx::TRACE_CHECKPOINT, "writer confirmed scn: " + std::to_string(confirmedScn) + " idx: " +
+                ctx->OLR_TRACE(Ctx::TRACE_CHECKPOINT, "writer confirmed scn: " + std::to_string(confirmedScn) + " idx: " +
                                                      std::to_string(confirmedIdx));
             else
-                ctx->logTrace(Ctx::TRACE_CHECKPOINT, "writer confirmed scn: " + std::to_string(confirmedScn) + " idx: " +
+                ctx->OLR_TRACE(Ctx::TRACE_CHECKPOINT, "writer confirmed scn: " + std::to_string(confirmedScn) + " idx: " +
                                                      std::to_string(confirmedIdx) + " checkpoint scn: " + std::to_string(checkpointScn) + " idx: " +
                                                      std::to_string(checkpointIdx));
         }
@@ -439,7 +439,7 @@ namespace OpenLogReplicator {
         metadata->startTime.clear();
         metadata->startTimeRel = 0;
 
-        ctx->info(0, "checkpoint - all confirmed till scn: " + std::to_string(checkpointScn) + ", idx: " +
+        ctx->OLR_INFO(0, "checkpoint - all confirmed till scn: " + std::to_string(checkpointScn) + ", idx: " +
                      std::to_string(checkpointIdx));
         metadata->setStatusReplicate();
     }

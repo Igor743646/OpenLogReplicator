@@ -153,7 +153,7 @@ namespace OpenLogReplicator {
             result = condition->evaluateToBool(op, attributes);
 
         if (unlikely(ctx->trace & Ctx::TRACE_CONDITION))
-            ctx->logTrace(Ctx::TRACE_CONDITION, "matchesCondition: table: " + owner + "." + name + ", condition: " + conditionStr + ", result: " +
+            ctx->OLR_TRACE(Ctx::TRACE_CONDITION, "matchesCondition: table: " + owner + "." + name + ", condition: " + conditionStr + ", result: " +
                                            std::to_string(result));
         return result;
     }

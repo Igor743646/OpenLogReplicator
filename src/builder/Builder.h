@@ -181,7 +181,7 @@ namespace OpenLogReplicator {
                 for (uint64_t i = 0; i < size && i < 64; ++i) {
                     ss << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<uint64_t>(data[i]) << ", ";
                 }
-                ctx->info(0, ss.str());
+                ctx->OLR_INFO(0, ss.str());
             }
 
             uint64_t base = static_cast<uint64_t>(column) >> 6;
@@ -275,7 +275,7 @@ namespace OpenLogReplicator {
                 }
                 unconfirmedSize = 0;
             }
-            ctx->logTrace(Ctx::TRACE_WRITER, "message header: " + message.header->ToString());
+            ctx->OLR_TRACE(Ctx::TRACE_WRITER, "message header: " + message.header->ToString());
             message.header = nullptr;
         };
 
@@ -307,7 +307,7 @@ namespace OpenLogReplicator {
                 std::ostringstream ss;
                 for (uint32_t j = 0; j < size; ++j)
                     ss << " " << std::hex << std::setfill('0') << std::setw(2) << (static_cast<uint64_t>(data[j]));
-                ctx->warning(60002, "unknown value (column: " + columnName + "): " + std::to_string(size) + " - " + ss.str());
+                ctx->OLR_WARN(60002, "unknown value (column: " + columnName + "): " + std::to_string(size) + " - " + ss.str());
             }
         };
 
@@ -486,10 +486,10 @@ namespace OpenLogReplicator {
             bool appendData = false, hasPrev = false, hasNext = true;
             valueSize = 0;
             if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA))
-                ctx->logTrace(Ctx::TRACE_LOB_DATA, dumpLob(data, size));
+                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, dumpLob(data, size));
 
             if (unlikely(size < 20)) {
-                ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 1");
+                ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 1");
                 return false;
             }
 
@@ -502,7 +502,7 @@ namespace OpenLogReplicator {
                 auto lobsIt = lobCtx->lobs.find(lobId);
                 if (unlikely(lobsIt == lobCtx->lobs.end())) {
                     if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA))
-                        ctx->logTrace(Ctx::TRACE_LOB_DATA, "LOB missing LOB index xid: " + lastXid.toString() + " LOB: " + lobId.lower() +
+                        ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "LOB missing LOB index xid: " + lastXid.toString() + " LOB: " + lobId.lower() +
                                                            " data: " + dumpLob(data, size));
                     return true;
                 }
@@ -514,7 +514,7 @@ namespace OpenLogReplicator {
                     typeDba pageNoLob = indexMapIt.first;
                     typeDba page = indexMapIt.second;
                     if (unlikely(pageNo != pageNoLob)) {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 2");
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 2");
                         pageNo = pageNoLob;
                     }
 
@@ -522,9 +522,9 @@ namespace OpenLogReplicator {
                     auto dataMapIt = lobData->dataMap.find(element);
                     if (unlikely(dataMapIt == lobData->dataMap.end())) {
                         if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA)) {
-                            ctx->logTrace(Ctx::TRACE_LOB_DATA, "missing LOB (in-index) for xid: " + lastXid.toString() + " LOB: " +
+                            ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "missing LOB (in-index) for xid: " + lastXid.toString() + " LOB: " +
                                                                lobId.lower() + " page: " + std::to_string(page) + " obj: " + std::to_string(obj));
-                            ctx->logTrace(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                            ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                         }
                         return false;
                     }
@@ -552,12 +552,12 @@ namespace OpenLogReplicator {
             } else {
                 // In-row
                 if (unlikely(size < 23)) {
-                    ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 3");
+                    ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 3");
                     return false;
                 }
                 uint16_t bodySize = ctx->read16Big(data + 20);
                 if (unlikely(size != static_cast<uint64_t>(bodySize + 20))) {
-                    ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 4");
+                    ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 4");
                     return false;
                 }
                 uint16_t flg2 = ctx->read16Big(data + 22);
@@ -569,7 +569,7 @@ namespace OpenLogReplicator {
                 // In-index
                 if ((flg2 & 0x0400) == 0x0400) {
                     if (unlikely(size < 36)) {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 5");
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 5");
                         return false;
                     }
                     uint32_t pageCnt = ctx->read32Big(data + 24);
@@ -579,9 +579,9 @@ namespace OpenLogReplicator {
                     auto lobsIt = lobCtx->lobs.find(lobId);
                     if (lobsIt == lobCtx->lobs.end()) {
                         if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA)) {
-                            ctx->logTrace(Ctx::TRACE_LOB_DATA, "missing LOB (in-index) for xid: " + lastXid.toString() + " obj: " +
+                            ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "missing LOB (in-index) for xid: " + lastXid.toString() + " obj: " +
                                                                std::to_string(obj));
-                            ctx->logTrace(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                            ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                         }
                         return false;
                     }
@@ -598,7 +598,7 @@ namespace OpenLogReplicator {
                         typeDba page = 0;
                         if (dataOffset < size) {
                             if (unlikely(size < dataOffset + 4)) {
-                                ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                                ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                     ", location: 6");
                                 return false;
                             }
@@ -607,7 +607,7 @@ namespace OpenLogReplicator {
                             // Rest of data in LOB index
                             auto indexMapIt = lobData->indexMap.find(j);
                             if (unlikely(indexMapIt == lobData->indexMap.end())) {
-                                ctx->warning(60004, "can't find page " + std::to_string(j) + " for xid: " + lastXid.toString() + ", LOB: " +
+                                ctx->OLR_WARN(60004, "can't find page " + std::to_string(j) + " for xid: " + lastXid.toString() + ", LOB: " +
                                                     lobId.lower() + ", obj: " + std::to_string(obj));
                                 break;
                             }
@@ -618,9 +618,9 @@ namespace OpenLogReplicator {
                         auto dataMapIt = lobData->dataMap.find(element);
                         if (dataMapIt == lobData->dataMap.end()) {
                             if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA)) {
-                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "missing LOB index (in-index) for xid: " + lastXid.toString() + " LOB: " +
+                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "missing LOB index (in-index) for xid: " + lastXid.toString() + " LOB: " +
                                                                    lobId.lower() + " page: " + std::to_string(page) + " obj: " + std::to_string(obj));
-                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                             }
                             return false;
                         }
@@ -650,12 +650,12 @@ namespace OpenLogReplicator {
                 } else if ((flg2 & 0x0100) == 0x0100) {
                     // In-value
                     if (unlikely(bodySize < 16)) {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 7");
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 7");
                         return false;
                     }
 
                     if (unlikely(size < 34)) {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 8");
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 8");
                         return false;
                     }
                     uint32_t zero1 = ctx->read32Big(data + 24);
@@ -663,7 +663,7 @@ namespace OpenLogReplicator {
                     uint32_t zero2 = ctx->read32Big(data + 30);
 
                     if (unlikely(zero1 != 0 || zero2 != 0 || chunkSize + 16 != bodySize)) {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 9");
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) + ", location: 9");
                         return false;
                     }
 
@@ -671,7 +671,7 @@ namespace OpenLogReplicator {
                         // Null value
                     } else {
                         if (unlikely(size < static_cast<uint64_t>(chunkSize) + 36)) {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 10");
                             return false;
                         }
@@ -681,7 +681,7 @@ namespace OpenLogReplicator {
                     }
                 } else {
                     if (unlikely(bodySize < 10)) {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                             ", location: 11");
                         return false;
                     }
@@ -689,7 +689,7 @@ namespace OpenLogReplicator {
                     uint8_t flg4 = data[27];
                     if ((flg3 & 0x03) == 0) {
                         if (unlikely(size < 30)) {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 12");
                             return false;
                         }
@@ -698,7 +698,7 @@ namespace OpenLogReplicator {
                         dataOffset = 29;
                     } else if ((flg3 & 0x03) == 1) {
                         if (unlikely(size < 30)) {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 13");
                             return false;
                         }
@@ -707,7 +707,7 @@ namespace OpenLogReplicator {
                         dataOffset = 30;
                     } else if ((flg3 & 0x03) == 2) {
                         if (unlikely(size < 32)) {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 14");
                             return false;
                         }
@@ -716,7 +716,7 @@ namespace OpenLogReplicator {
                         dataOffset = 31;
                     } else if ((flg3 & 0x03) == 3) {
                         if (unlikely(size < 32)) {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 15");
                             return false;
                         }
@@ -724,7 +724,7 @@ namespace OpenLogReplicator {
                         totalLobSize = ctx->read32Big(data + 28);
                         dataOffset = 32;
                     } else {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                             ", location: 16");
                         return false;
                     }
@@ -734,7 +734,7 @@ namespace OpenLogReplicator {
                     } else if ((flg4 & 0x0F) == 0x01) {
                         dataOffset += 2;
                     } else {
-                        ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                        ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                             ", location: 17");
                         return false;
                     }
@@ -748,7 +748,7 @@ namespace OpenLogReplicator {
                         chunkSize = totalLobSize;
 
                         if (unlikely(dataOffset + chunkSize < size)) {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 18");
                             return false;
                         }
@@ -763,9 +763,9 @@ namespace OpenLogReplicator {
                         auto lobsIt = lobCtx->lobs.find(lobId);
                         if (lobsIt == lobCtx->lobs.end()) {
                             if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA)) {
-                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "missing LOB index (12+ in-value) for xid: " + lastXid.toString() + " LOB: " +
+                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "missing LOB index (12+ in-value) for xid: " + lastXid.toString() + " LOB: " +
                                                                    lobId.lower() + " obj: " + std::to_string(obj));
-                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                             }
                             return false;
                         }
@@ -777,7 +777,7 @@ namespace OpenLogReplicator {
 
                             for (uint64_t i = 0; i < lobPages; ++i) {
                                 if (unlikely(dataOffset + 1U >= size)) {
-                                    ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                                    ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                         ", location: 19");
                                     return false;
                                 }
@@ -798,10 +798,10 @@ namespace OpenLogReplicator {
                                     auto dataMapIt = lobData->dataMap.find(element);
                                     if (unlikely(dataMapIt == lobData->dataMap.end())) {
                                         if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA)) {
-                                            ctx->logTrace(Ctx::TRACE_LOB_DATA, "missing LOB data (new in-value) for xid: " + lastXid.toString() +
+                                            ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "missing LOB data (new in-value) for xid: " + lastXid.toString() +
                                                                                " LOB: " + lobId.lower() + " page: " + std::to_string(page) + " obj: " +
                                                                                std::to_string(obj));
-                                            ctx->logTrace(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                                            ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                                         }
                                         return false;
                                     }
@@ -828,7 +828,7 @@ namespace OpenLogReplicator {
                         } else if ((flg3 & 0xF0) == 0x40) {
                             // Style 2
                             if (unlikely(dataOffset + 4 != size)) {
-                                ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                                ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                     ", location: 20");
                                 return false;
                             }
@@ -837,7 +837,7 @@ namespace OpenLogReplicator {
                             while (listPage != 0) {
                                 auto listMapIt = lobCtx->listMap.find(listPage);
                                 if (unlikely(listMapIt == lobCtx->listMap.end())) {
-                                    ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                                    ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                         ", location: 21, page: " + std::to_string(listPage) + ", offset: " + std::to_string(dataOffset));
                                     return false;
                                 }
@@ -855,10 +855,10 @@ namespace OpenLogReplicator {
                                         auto dataMapIt = lobData->dataMap.find(element);
                                         if (unlikely(dataMapIt == lobData->dataMap.end())) {
                                             if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA)) {
-                                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "missing LOB data (new in-value 12+) for xid: " + lastXid.toString() +
+                                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "missing LOB data (new in-value 12+) for xid: " + lastXid.toString() +
                                                                                    " LOB: " + lobId.lower() + " page: " + std::to_string(page) + " obj: " +
                                                                                    std::to_string(obj));
-                                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " +
+                                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " +
                                                                                    dumpLob(dataLob, size));
                                             }
                                             return false;
@@ -881,7 +881,7 @@ namespace OpenLogReplicator {
                                 }
                             }
                         } else {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 22");
                             return false;
                         }
@@ -889,7 +889,7 @@ namespace OpenLogReplicator {
                     } else {
                         // Index
                         if (unlikely(dataOffset + 1U >= size)) {
-                            ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                            ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                 ", location: 23");
                             return false;
                         }
@@ -899,9 +899,9 @@ namespace OpenLogReplicator {
                         auto lobsIt = lobCtx->lobs.find(lobId);
                         if (unlikely(lobsIt == lobCtx->lobs.end())) {
                             if (unlikely(ctx->trace & Ctx::TRACE_LOB_DATA)) {
-                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "missing LOB index (new in-value) for xid: " + lastXid.toString() + " LOB: " +
+                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "missing LOB index (new in-value) for xid: " + lastXid.toString() + " LOB: " +
                                                                    lobId.lower() + " obj: " + std::to_string(obj));
-                                ctx->logTrace(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                                ctx->OLR_TRACE(Ctx::TRACE_LOB_DATA, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                             }
                             return false;
                         }
@@ -909,7 +909,7 @@ namespace OpenLogReplicator {
 
                         for (uint64_t i = 0; i < lobPages; ++i) {
                             if (unlikely(dataOffset + 5 >= size)) {
-                                ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                                ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                     ", location: 24");
                                 return false;
                             }
@@ -923,14 +923,14 @@ namespace OpenLogReplicator {
                                 pageCnt = data[dataOffset++];
                             } else if ((flg5 & 0xF0) == 0x20) {
                                 if (unlikely(dataOffset + 1U >= size)) {
-                                    ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                                    ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                         ", location: 26");
                                     return false;
                                 }
                                 pageCnt = ctx->read16Big(data + dataOffset);
                                 dataOffset += 2;
                             } else {
-                                ctx->warning(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
+                                ctx->OLR_WARN(60003, "incorrect LOB for xid: " + lastXid.toString() + ", data:" + dumpLob(data, size) +
                                                     ", location: 27");
                                 return false;
                             }
@@ -939,9 +939,9 @@ namespace OpenLogReplicator {
                                 LobDataElement element(page, 0);
                                 auto dataMapIt = lobData->dataMap.find(element);
                                 if (unlikely(dataMapIt == lobData->dataMap.end())) {
-                                    ctx->warning(60005, "missing LOB data (new in-value) for xid: " + lastXid.toString() + ", LOB: " +
+                                    ctx->OLR_WARN(60005, "missing LOB data (new in-value) for xid: " + lastXid.toString() + ", LOB: " +
                                                         lobId.lower() + ", page: " + std::to_string(page) + ", obj: " + std::to_string(obj));
-                                    ctx->warning(60006, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                                    ctx->OLR_WARN(60006, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                                     return false;
                                 }
 
@@ -964,9 +964,9 @@ namespace OpenLogReplicator {
                 }
 
                 if (unlikely(totalLobSize != 0)) {
-                    ctx->warning(60007, "incorrect LOB sum xid: " + lastXid.toString() + " left: " + std::to_string(totalLobSize) +
+                    ctx->OLR_WARN(60007, "incorrect LOB sum xid: " + lastXid.toString() + " left: " + std::to_string(totalLobSize) +
                                         " obj: " + std::to_string(obj));
-                    ctx->warning(60006, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
+                    ctx->OLR_WARN(60006, "dump LOB: " + lobId.lower() + " data: " + dumpLob(data, size));
                     return false;
                 }
             }

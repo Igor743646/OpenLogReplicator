@@ -58,7 +58,7 @@ namespace OpenLogReplicator {
     }
 
     bool ReplicatorBatch::continueWithOnline() {
-        ctx->info(0, "finished batch processing, exiting");
+        ctx->OLR_INFO(0, "finished batch processing, exiting");
         ctx->stopSoft();
         return false;
     }
