@@ -38,7 +38,7 @@ namespace OpenLogReplicator {
         void processContinue();
         void processConfirm();
         void pollQueue() override;
-        void sendMessage(BuilderMsg* msg) override;
+        void sendMessage(BuilderMessageHeader* msg) override;
 
     public:
         WriterStream(Ctx* newCtx, const std::string& newAlias, const std::string& newDatabase, Builder* newBuilder, Metadata* newMetadata, Stream* newStream);

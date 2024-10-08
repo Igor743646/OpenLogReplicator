@@ -30,7 +30,7 @@ namespace OpenLogReplicator {
     void WriterDiscard::initialize() {
     }
 
-    void WriterDiscard::sendMessage(BuilderMsg* msg) {
+    void WriterDiscard::sendMessage(BuilderMessageHeader* msg) {
         confirmMessage(msg);
     }
 

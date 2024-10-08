@@ -25,8 +25,8 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 
 namespace OpenLogReplicator {
     class Builder;
-    struct BuilderMsg;
-    struct BuilderQueue;
+    struct BuilderMessageHeader;
+    struct BuilderChunkHeader;
     class Metadata;
 
     class Writer : public Thread {
@@ -37,7 +37,7 @@ namespace OpenLogReplicator {
         Builder* builder;
         Metadata* metadata;
         // Information about local checkpoint
-        BuilderQueue* builderQueue;
+        BuilderChunkHeader* builderQueue;
         typeScn checkpointScn;
         typeIdx checkpointIdx;
         time_t checkpointTime;
@@ -51,10 +51,10 @@ namespace OpenLogReplicator {
         // scn,idx confirmed by client
         typeScn confirmedScn;
         typeIdx confirmedIdx;
-        BuilderMsg** queue;
+        BuilderMessageHeader** queue;
 
-        void createMessage(BuilderMsg* msg);
-        virtual void sendMessage(BuilderMsg* msg) = 0;
+        void createMessage(BuilderMessageHeader* msg);
+        virtual void sendMessage(BuilderMessageHeader* msg) = 0;
         virtual std::string getName() const = 0;
         virtual void pollQueue() = 0;
         void run() override;
@@ -69,7 +69,7 @@ namespace OpenLogReplicator {
         ~Writer() override;
 
         virtual void initialize();
-        void confirmMessage(BuilderMsg* msg);
+        void confirmMessage(BuilderMessageHeader* msg);
         void wakeUp() override;
     };
 }

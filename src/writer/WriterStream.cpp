@@ -277,7 +277,7 @@ namespace OpenLogReplicator {
             throw NetworkException(10061, "network error, errno: " + std::to_string(errno) + ", message: " + strerror(errno));
     }
 
-    void WriterStream::sendMessage(BuilderMsg* msg) {
+    void WriterStream::sendMessage(BuilderMessageHeader* msg) {
         ctx->logTrace(Ctx::TRACE_WRITER, "send msg: " + msg->ToString());
         stream->sendMessage(msg->data, msg->size);
     }

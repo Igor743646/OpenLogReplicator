@@ -287,7 +287,7 @@ namespace OpenLogReplicator {
         }
     }
 
-    void WriterFile::sendMessage(BuilderMsg* msg) {
+    void WriterFile::sendMessage(BuilderMessageHeader* msg) {
         if (newLine > 0)
             checkFile(msg->scn, msg->sequence, msg->size + 1);
         else

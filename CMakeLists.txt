@@ -69,7 +69,7 @@ endif ()
 
 # Protobuf, dynamic or static
 if (WITH_PROTOBUF)
-    include_directories(${WITH_PROTOBUF}/include)
+    include_directories(SYSTEM ${WITH_PROTOBUF}/include)
     add_compile_definitions(LINK_LIBRARY_PROTOBUF)
 
     if (WITH_STATIC)

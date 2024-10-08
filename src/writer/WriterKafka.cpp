@@ -92,7 +92,7 @@ namespace OpenLogReplicator {
     }
 
     void WriterKafka::dr_msg_cb(rd_kafka_t* rkCb __attribute__((unused)), const rd_kafka_message_t* rkMessage, void* opaque __attribute__((unused))) {
-        auto msg = reinterpret_cast<BuilderMsg*>(rkMessage->_private);
+        auto msg = reinterpret_cast<BuilderMessageHeader*>(rkMessage->_private);
         auto writer = reinterpret_cast<Writer*>(opaque);
         if (rkMessage->err) {
             writer->ctx->warning(70008, "Kafka: " + std::to_string(msg->id) + " delivery failed: " + rd_kafka_err2str(rkMessage->err));
@@ -124,7 +124,7 @@ namespace OpenLogReplicator {
                                                      ", fac: " + fac + ", err: " + buf);
     }
 
-    void WriterKafka::sendMessage(BuilderMsg* msg) {
+    void WriterKafka::sendMessage(BuilderMessageHeader* msg) {
         msg->ptr = reinterpret_cast<void*>(this);
         for (;;) {
             rd_kafka_resp_err_t err = rd_kafka_producev(rk, RD_KAFKA_V_TOPIC(topic.c_str()), RD_KAFKA_V_VALUE(msg->data, msg->size),

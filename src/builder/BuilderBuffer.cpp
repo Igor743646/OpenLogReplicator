@@ -1,4 +1,3 @@
-#include "BuilderBuffer.h"
 /* Memory buffer for handling output data
    Copyright (C) 2018-2024 Adam Leszczynski (aleszczynski@bersler.com)
 
@@ -34,9 +33,9 @@ namespace OpenLogReplicator {
     BuilderBuffer::~BuilderBuffer()
     {
         while (firstChunk != nullptr) {
-            BuilderQueue* nextBuffer = firstChunk->next;
+            BuilderChunkHeader* nextChunk = firstChunk->next;
             ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, reinterpret_cast<uint8_t*>(firstChunk), true);
-            firstChunk = nextBuffer;
+            firstChunk = nextChunk;
             --chunksAllocated;
         }
 
@@ -44,52 +43,68 @@ namespace OpenLogReplicator {
     }
 
     void BuilderBuffer::releaseBuffers(uint64_t maxId) {
-        BuilderQueue* builderQueue;
+        BuilderChunkHeader* chunk;
         {
             std::unique_lock<std::mutex> lck(mtx);
-            builderQueue = firstChunk;
+            chunk = firstChunk;
             while (firstChunk->id < maxId) {
                 firstChunk = firstChunk->next;
             }
         }
 
-        if (builderQueue != nullptr) {
-            while (builderQueue->id < maxId) {
-                BuilderQueue* nextBuffer = builderQueue->next;
-                ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, reinterpret_cast<uint8_t*>(builderQueue), true);
-                builderQueue = nextBuffer;
+        if (chunk != nullptr) {
+            while (chunk->id < maxId) {
+                BuilderChunkHeader* nextBuffer = chunk->next;
+                ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, reinterpret_cast<uint8_t*>(chunk), true);
+                chunk = nextBuffer;
                 --chunksAllocated;
             }
         }
+    }
+
+    const BuilderChunkHeader& BuilderBuffer::begin() const {
+        return *reinterpret_cast<BuilderChunkHeader*>(firstChunk);
+    }
+
+    BuilderChunkHeader& BuilderBuffer::begin() {
+        return *reinterpret_cast<BuilderChunkHeader*>(firstChunk);
+    }
+
+    const BuilderChunkHeader& BuilderBuffer::end() const {
+        return *reinterpret_cast<BuilderChunkHeader*>(lastChunk);
+    }
+
+    BuilderChunkHeader& BuilderBuffer::end() {
+        return *reinterpret_cast<BuilderChunkHeader*>(lastChunk);
     }
 
     void BuilderBuffer::initialize() {
         void* memoryChunk = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, true);
         chunksAllocated = 1;
 
-        std::memset(reinterpret_cast<void*>(memoryChunk), 0, sizeof(BuilderQueue));
-        lastChunk = firstChunk = reinterpret_cast<BuilderQueue*>(memoryChunk);
-        firstChunk->data = reinterpret_cast<uint8_t*>(firstChunk) + sizeof(struct BuilderQueue);
+        std::memset(reinterpret_cast<void*>(memoryChunk), 0, sizeof(BuilderChunkHeader));
+        lastChunk = firstChunk = reinterpret_cast<BuilderChunkHeader*>(memoryChunk);
+        firstChunk->data = reinterpret_cast<uint8_t*>(firstChunk) + sizeof(struct BuilderChunkHeader);
     }
 
-    void BuilderBuffer::expand(bool copy) {
+    void BuilderBuffer::expand(bool copy, BuilderMessage& message) {
         void* memoryChunk = ctx->getMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, true);
 
-        auto nextChunk = reinterpret_cast<BuilderQueue*>(memoryChunk);
+        auto nextChunk = reinterpret_cast<BuilderChunkHeader*>(memoryChunk);
         nextChunk->next = nullptr;
         nextChunk->id = lastChunk->id + 1;
-        nextChunk->data = reinterpret_cast<uint8_t*>(nextChunk) + sizeof(struct BuilderQueue);
+        nextChunk->data = reinterpret_cast<uint8_t*>(nextChunk) + sizeof(struct BuilderChunkHeader);
 
         // Message could potentially fit in one buffer
-        if (likely(copy && msg != nullptr && messageSize + messagePosition < OUTPUT_BUFFER_DATA_SIZE)) {
-            memcpy(reinterpret_cast<void*>(nextChunk->data), msg, messagePosition);
-            msg = reinterpret_cast<BuilderMsg*>(nextChunk->data);
-            msg->data = nextChunk->data + sizeof(struct BuilderMsg);
+        if (likely(copy && message.header != nullptr && message.size + message.position < OUTPUT_BUFFER_DATA_SIZE)) {
+            memcpy(reinterpret_cast<void*>(nextChunk->data), message.header, message.position);
+            message.header = reinterpret_cast<BuilderMessageHeader*>(nextChunk->data);
+            message.header->data = nextChunk->data + sizeof(struct BuilderMessageHeader);
             nextChunk->start = 0;
         } else {
-            lastChunk->size += messagePosition;
-            messageSize += messagePosition;
-            messagePosition = 0;
+            lastChunk->size += message.position;
+            message.size += message.position;
+            message.position = 0;
             nextChunk->start = BUFFER_START_UNDEFINED;
         }
         nextChunk->size = 0;

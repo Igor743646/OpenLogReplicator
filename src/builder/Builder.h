@@ -26,6 +26,7 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 #include <unordered_map>
 #include <unordered_set>
 
+#include "BuilderBuffer.h"
 #include "../common/Ctx.h"
 #include "../common/LobCtx.h"
 #include "../common/LobData.h"
@@ -51,36 +52,9 @@ namespace OpenLogReplicator {
     class Metadata;
     class SystemTransaction;
     class XmlCtx;
-
-    struct BuilderQueue {
-        uint64_t id;
-        std::atomic<uint64_t> size;
-        std::atomic<uint64_t> start;
-        uint8_t* data;
-        std::atomic<BuilderQueue*> next;
-    };
-
-    struct BuilderMsg {
-        void* ptr;
-        uint64_t id;
-        uint64_t queueId;
-        std::atomic<uint64_t> size;
-        typeScn scn;
-        typeScn lwnScn;
-        typeIdx lwnIdx;
-        uint8_t* data;
-        typeSeq sequence;
-        typeObj obj;
-        uint16_t pos;
-        uint16_t flags;
-
-        std::string ToString() const {
-            return "id: " + std::to_string(id) + " size: " + std::to_string(size.load()) + " scn: " + std::to_string(scn) 
-                    + " lwnScn: " + std::to_string(lwnScn) + " lwnIdx: " + std::to_string(lwnIdx)
-                    + " sequence: " + std::to_string(sequence) + " obj: " + std::to_string(obj)
-                    ;
-        }
-    };
+    struct BuilderChunkHeader;
+    struct BuilderMessageHeader;
+    struct BuilderMessage;
 
     struct BuilderSettings {
         uint64_t dbFormat;
@@ -103,7 +77,7 @@ namespace OpenLogReplicator {
 
     class Builder {
     public:
-        static constexpr uint64_t OUTPUT_BUFFER_DATA_SIZE = Ctx::MEMORY_CHUNK_SIZE - sizeof(struct BuilderQueue);
+        static constexpr uint64_t OUTPUT_BUFFER_DATA_SIZE = Ctx::MEMORY_CHUNK_SIZE - sizeof(struct BuilderChunkHeader);
 
         static constexpr uint16_t OUTPUT_BUFFER_MESSAGE_ALLOCATED = 0x0001;
         static constexpr uint16_t OUTPUT_BUFFER_MESSAGE_CONFIRMED = 0x0002;
@@ -130,13 +104,12 @@ namespace OpenLogReplicator {
         Ctx* ctx;
         Locales* locales;
         Metadata* metadata;
-        BuilderMsg* msg;
 
         BuilderSettings formats;
+        BuilderBuffer bufferManager;
         uint64_t unknownType;
         uint64_t unconfirmedSize;
-        uint64_t messageSize;
-        uint64_t messagePosition;
+        BuilderMessage message;
         uint64_t flushBuffer;
         char* valueBuffer;
         uint64_t valueSize;
@@ -170,34 +143,6 @@ namespace OpenLogReplicator {
 
         double decodeFloat(const uint8_t* data);
         long double decodeDouble(const uint8_t* data);
-
-        inline void builderRotate(bool copy) {
-            auto nextBuffer = reinterpret_cast<BuilderQueue*>(ctx->getMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, true));
-            nextBuffer->next = nullptr;
-            nextBuffer->id = lastBuilderQueue->id + 1;
-            nextBuffer->data = reinterpret_cast<uint8_t*>(nextBuffer) + sizeof(struct BuilderQueue);
-
-            // Message could potentially fit in one buffer
-            if (likely(copy && msg != nullptr && messageSize + messagePosition < OUTPUT_BUFFER_DATA_SIZE)) {
-                memcpy(reinterpret_cast<void*>(nextBuffer->data), msg, messagePosition);
-                msg = reinterpret_cast<BuilderMsg*>(nextBuffer->data);
-                msg->data = nextBuffer->data + sizeof(struct BuilderMsg);
-                nextBuffer->start = 0;
-            } else {
-                lastBuilderQueue->size += messagePosition;
-                messageSize += messagePosition;
-                messagePosition = 0;
-                nextBuffer->start = BUFFER_START_UNDEFINED;
-            }
-            nextBuffer->size = 0;
-
-            {
-                std::unique_lock<std::mutex> lck(mtx);
-                lastBuilderQueue->next = nextBuffer;
-                ++buffersAllocated;
-                lastBuilderQueue = nextBuffer;
-            }
-        }
 
         void processValue(LobCtx* lobCtx, const XmlCtx* xmlCtx, const OracleTable* table, typeCol col, const uint8_t* data, uint32_t size, uint64_t offset,
                           bool after, bool compressed);
@@ -277,73 +222,73 @@ namespace OpenLogReplicator {
         };
 
         inline void builderShift(bool copy) {
-            ++messagePosition;
+            ++message.position;
 
-            if (unlikely(lastBuilderQueue->size + messagePosition >= OUTPUT_BUFFER_DATA_SIZE))
-                builderRotate(copy);
+            if (unlikely(bufferManager.end().size + message.position >= OUTPUT_BUFFER_DATA_SIZE))
+                bufferManager.expand(copy, message);
         };
 
         inline void builderShiftFast(uint64_t bytes) {
-            messagePosition += bytes;
+            message.position += bytes;
         };
 
         inline void builderBegin(typeScn scn, typeSeq sequence, typeObj obj, uint16_t flags) {
-            messageSize = 0;
-            messagePosition = 0;
+            message.size = 0;
+            message.position = 0;
             if ((formats.scnFormat & SCN_ALL_COMMIT_VALUE) != 0)
                 scn = commitScn;
 
-            if (unlikely(lastBuilderQueue->size + messagePosition + sizeof(struct BuilderMsg) >= OUTPUT_BUFFER_DATA_SIZE))
-                builderRotate(true);
+            if (unlikely(bufferManager.end().size + message.position + sizeof(struct BuilderMessageHeader) >= OUTPUT_BUFFER_DATA_SIZE))
+                bufferManager.expand(true, message);
 
-            msg = reinterpret_cast<BuilderMsg*>(lastBuilderQueue->data + lastBuilderQueue->size);
-            builderShiftFast(sizeof(struct BuilderMsg));
-            msg->scn = scn;
-            msg->lwnScn = lwnScn;
-            msg->lwnIdx = lwnIdx++;
-            msg->sequence = sequence;
-            msg->size = 0;
-            msg->id = id++;
-            msg->obj = obj;
-            msg->pos = 0;
-            msg->flags = flags;
-            msg->data = lastBuilderQueue->data + lastBuilderQueue->size + sizeof(struct BuilderMsg);
+            message.header = reinterpret_cast<BuilderMessageHeader*>(bufferManager.end().data + bufferManager.end().size);
+            builderShiftFast(sizeof(struct BuilderMessageHeader));
+            message.header->scn = scn;
+            message.header->lwnScn = lwnScn;
+            message.header->lwnIdx = lwnIdx++;
+            message.header->sequence = sequence;
+            message.header->size = 0;
+            message.header->id = id++;
+            message.header->obj = obj;
+            message.header->pos = 0;
+            message.header->flags = flags;
+            message.header->data = bufferManager.end().data + bufferManager.end().size + sizeof(struct BuilderMessageHeader);
         };
 
-        inline void builderCommit(bool force) {
-            messageSize += messagePosition;
-            if (unlikely(messageSize == sizeof(struct BuilderMsg)))
+        inline void builderCommit(bool forceFlush) {
+            message.size += message.position;
+            if (unlikely(message.size == sizeof(struct BuilderMessageHeader)))
                 throw RedoLogException(50058, "output buffer - commit of empty transaction");
 
-            msg->queueId = lastBuilderQueue->id;
-            builderShiftFast((8 - (messagePosition & 7)) & 7);
-            unconfirmedSize += messageSize;
-            msg->size = messageSize - sizeof(struct BuilderMsg);
-            lastBuilderQueue->size += messagePosition;
-            if (lastBuilderQueue->start == BUFFER_START_UNDEFINED)
-                lastBuilderQueue->start = static_cast<uint64_t>(lastBuilderQueue->size);
+            message.header->queueId = bufferManager.end().id;
+            builderShiftFast((8 - (message.position & 7)) & 7);
+            unconfirmedSize += message.size;
+            message.header->size = message.size - sizeof(struct BuilderMessageHeader);
+            bufferManager.end().size += message.position;
+            if (bufferManager.end().start == BUFFER_START_UNDEFINED)
+                bufferManager.end().start = static_cast<uint64_t>(bufferManager.end().size);
 
-            if (force || flushBuffer == 0 || unconfirmedSize > flushBuffer) {
+            if (forceFlush || flushBuffer == 0 || unconfirmedSize > flushBuffer) {
                 {
                     std::unique_lock<std::mutex> lck(mtx);
                     condNoWriterWork.notify_all();
                 }
                 unconfirmedSize = 0;
             }
-            ctx->logTrace(Ctx::TRACE_WRITER, "msg: " + msg->ToString());
-            msg = nullptr;
+            ctx->logTrace(Ctx::TRACE_WRITER, "message header: " + message.header->ToString());
+            message.header = nullptr;
         };
 
         void append(char character) {
-            lastBuilderQueue->data[lastBuilderQueue->size + messagePosition] = character;
+            bufferManager.end().data[bufferManager.end().size + message.position] = character;
             builderShift(true);
         };
 
         void append(const char* str, uint64_t size) {
-            if (unlikely(lastBuilderQueue->size + messagePosition + size < OUTPUT_BUFFER_DATA_SIZE)) {
-                memcpy(reinterpret_cast<void*>(lastBuilderQueue->data + lastBuilderQueue->size + messagePosition),
+            if (unlikely(bufferManager.end().size + message.position + size < OUTPUT_BUFFER_DATA_SIZE)) {
+                memcpy(reinterpret_cast<void*>(bufferManager.end().data + bufferManager.end().size + message.position),
                        reinterpret_cast<const void*>(str), size);
-                messagePosition += size;
+                builderShiftFast(size);
             } else {
                 for (uint64_t i = 0; i < size; ++i)
                     append(*str++);
@@ -351,16 +296,7 @@ namespace OpenLogReplicator {
         };
 
         inline void append(const std::string& str) {
-            uint64_t size = str.length();
-            if (unlikely(lastBuilderQueue->size + messagePosition + size < OUTPUT_BUFFER_DATA_SIZE)) {
-                memcpy(reinterpret_cast<void*>(lastBuilderQueue->data + lastBuilderQueue->size + messagePosition),
-                       reinterpret_cast<const void*>(str.c_str()), size);
-                messagePosition += size;
-            } else {
-                const char* charStr = str.c_str();
-                for (uint64_t i = 0; i < size; ++i)
-                    append(*charStr++);
-            }
+            append(str.c_str(), str.length());
         };
 
         inline void columnUnknown(const std::string& columnName, const uint8_t* data, uint32_t size) {
@@ -1322,14 +1258,16 @@ namespace OpenLogReplicator {
         static constexpr uint64_t VALUE_AFTER_SUPP = 3;
 
         SystemTransaction* systemTransaction;
-        uint64_t buffersAllocated;
-        BuilderQueue* firstBuilderQueue;
-        BuilderQueue* lastBuilderQueue;
         typeScn lwnScn;
         typeIdx lwnIdx;
 
         Builder(Ctx* newCtx, Locales* newLocales, Metadata* newMetadata, BuilderSettings newFormats, uint64_t newUnknownType, uint64_t newFlushBuffer);
         virtual ~Builder();
+
+
+        inline BuilderChunkHeader* firstBuilderQueue() {
+            return &bufferManager.begin();
+        }
 
         [[nodiscard]] uint64_t builderSize() const;
         [[nodiscard]] uint64_t getMaxMessageMb() const;

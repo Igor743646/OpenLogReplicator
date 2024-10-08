@@ -37,12 +37,11 @@ namespace OpenLogReplicator {
             ctx(newCtx),
             locales(newLocales),
             metadata(newMetadata),
-            msg(nullptr),
             formats(newFormats),
+            bufferManager(newCtx),
             unknownType(newUnknownType),
             unconfirmedSize(0),
-            messageSize(0),
-            messagePosition(0),
+            message{nullptr, 0, 0},
             flushBuffer(newFlushBuffer),
             valueBuffer(nullptr),
             valueSize(0),
@@ -61,9 +60,6 @@ namespace OpenLogReplicator {
             compressedAfter(false),
             prevCharsSize(0),
             systemTransaction(nullptr),
-            buffersAllocated(0),
-            firstBuilderQueue(nullptr),
-            lastBuilderQueue(nullptr),
             lwnScn(Ctx::ZERO_SCN),
             lwnIdx(0) {
         memset(reinterpret_cast<void*>(valuesSet), 0, sizeof(valuesSet));
@@ -75,13 +71,6 @@ namespace OpenLogReplicator {
     Builder::~Builder() {
         valuesRelease();
         tables.clear();
-
-        while (firstBuilderQueue != nullptr) {
-            BuilderQueue* nextBuffer = firstBuilderQueue->next;
-            ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, reinterpret_cast<uint8_t*>(firstBuilderQueue), true);
-            firstBuilderQueue = nextBuffer;
-            --buffersAllocated;
-        }
 
         if (systemTransaction != nullptr) {
             delete systemTransaction;
@@ -100,14 +89,7 @@ namespace OpenLogReplicator {
     }
 
     void Builder::initialize() {
-        buffersAllocated = 1;
-        firstBuilderQueue = reinterpret_cast<BuilderQueue*>(ctx->getMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, true));
-        firstBuilderQueue->id = 0;
-        firstBuilderQueue->next = nullptr;
-        firstBuilderQueue->data = reinterpret_cast<uint8_t*>(firstBuilderQueue) + sizeof(struct BuilderQueue);
-        firstBuilderQueue->size = 0;
-        firstBuilderQueue->start = 0;
-        lastBuilderQueue = firstBuilderQueue;
+        bufferManager.initialize();
 
         valueBuffer = new char[VALUE_BUFFER_MIN];
         valueBufferSize = VALUE_BUFFER_MIN;
@@ -696,7 +678,7 @@ namespace OpenLogReplicator {
     }
 
     uint64_t Builder::builderSize() const {
-        return ((messageSize + messagePosition + 7) & 0xFFFFFFFFFFFFFFF8);
+        return ((message.size + message.position + 7) & 0xFFFFFFFFFFFFFFF8);
     }
 
     uint64_t Builder::getMaxMessageMb() const {
@@ -2322,23 +2304,7 @@ namespace OpenLogReplicator {
     }
 
     void Builder::releaseBuffers(uint64_t maxId) {
-        BuilderQueue* builderQueue;
-        {
-            std::unique_lock<std::mutex> lck(mtx);
-            builderQueue = firstBuilderQueue;
-            while (firstBuilderQueue->id < maxId) {
-                firstBuilderQueue = firstBuilderQueue->next;
-                --buffersAllocated;
-            }
-        }
-
-        if (builderQueue != nullptr) {
-            while (builderQueue->id < maxId) {
-                BuilderQueue* nextBuffer = builderQueue->next;
-                ctx->freeMemoryChunk(Ctx::MEMORY_MODULE_BUILDER, reinterpret_cast<uint8_t*>(builderQueue), true);
-                builderQueue = nextBuffer;
-            }
-        }
+        bufferManager.releaseBuffers(maxId);
     }
 
     void Builder::sleepForWriterWork(uint64_t queueSize, uint64_t nanoseconds) {

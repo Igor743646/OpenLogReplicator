@@ -67,6 +67,7 @@ list(APPEND ListLocales
 
 list(APPEND ListBuilder
         builder/Builder.cpp
+        builder/BuilderBuffer.cpp
         builder/BuilderJson.cpp
         builder/SystemTransaction.cpp)
 

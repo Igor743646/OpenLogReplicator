@@ -25,7 +25,7 @@ along with OpenLogReplicator; see the file LICENSE;  If not see
 namespace OpenLogReplicator {
     class WriterDiscard final : public Writer {
     protected:
-        void sendMessage(BuilderMsg* msg) override;
+        void sendMessage(BuilderMessageHeader* msg) override;
         std::string getName() const override;
         void pollQueue() override;
 

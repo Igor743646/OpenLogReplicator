@@ -504,11 +504,11 @@ namespace OpenLogReplicator {
                 value /= 10;
             }
 
-            if (likely(lastBuilderQueue->size + messagePosition + size < OUTPUT_BUFFER_DATA_SIZE)) {
-                uint8_t *ptr = lastBuilderQueue->data + lastBuilderQueue->size + messagePosition;
+            if (likely(bufferManager.end().size + message.position + size < OUTPUT_BUFFER_DATA_SIZE)) {
+                uint8_t *ptr = bufferManager.end().data + bufferManager.end().size + message.position;
                 for (uint64_t i = 0; i < size; ++i)
                     *ptr++ = buffer[size - i - 1];
-                messagePosition += size;
+                message.position += size;
             } else {
                 for (uint64_t i = 0; i < size; ++i)
                     append(buffer[size - i - 1]);
@@ -529,11 +529,11 @@ namespace OpenLogReplicator {
                 }
             }
 
-            if (likely(lastBuilderQueue->size + messagePosition + size < OUTPUT_BUFFER_DATA_SIZE)) {
-                uint8_t* ptr = lastBuilderQueue->data + lastBuilderQueue->size + messagePosition;
+            if (likely(bufferManager.end().size + message.position + size < OUTPUT_BUFFER_DATA_SIZE)) {
+                uint8_t* ptr = bufferManager.end().data + bufferManager.end().size + message.position;
                 for (uint64_t i = 0; i < size; ++i)
                     *ptr++ = buffer[size - i - 1];
-                messagePosition += size;
+                message.position += size;
             } else {
                 for (uint64_t i = 0; i < size; ++i)
                     append(buffer[size - i - 1]);

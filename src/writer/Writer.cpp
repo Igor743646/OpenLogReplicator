@@ -59,10 +59,10 @@ namespace OpenLogReplicator {
     void Writer::initialize() {
         if (queue != nullptr)
             return;
-        queue = new BuilderMsg* [ctx->queueSize];
+        queue = new BuilderMessageHeader* [ctx->queueSize];
     }
 
-    void Writer::createMessage(BuilderMsg* msg) {
+    void Writer::createMessage(BuilderMessageHeader* msg) {
         ++sentMessages;
 
         queue[currentQueueSize++] = msg;
@@ -76,8 +76,8 @@ namespace OpenLogReplicator {
         if (currentQueueSize == 0)
             return;
 
-        BuilderMsg** oldQueue = queue;
-        queue = new BuilderMsg* [ctx->queueSize];
+        BuilderMessageHeader** oldQueue = queue;
+        queue = new BuilderMessageHeader* [ctx->queueSize];
         uint64_t oldQueueSize = currentQueueSize;
 
         for (uint64_t newId = 0; newId < currentQueueSize; ++newId) {
@@ -108,7 +108,7 @@ namespace OpenLogReplicator {
 
     void Writer::resetMessageQueue() {
         for (uint64_t i = 0; i < currentQueueSize; ++i) {
-            BuilderMsg* msg = queue[i];
+            BuilderMessageHeader* msg = queue[i];
             if ((msg->flags & Builder::OUTPUT_BUFFER_MESSAGE_ALLOCATED) != 0)
                 delete[] msg->data;
         }
@@ -117,7 +117,7 @@ namespace OpenLogReplicator {
         oldSize = builderQueue->start;
     }
 
-    void Writer::confirmMessage(BuilderMsg* msg) {
+    void Writer::confirmMessage(BuilderMessageHeader* msg) {
         if (ctx->metrics && msg != nullptr) {
             ctx->metrics->emitBytesConfirmed(msg->size);
             ctx->metrics->emitMessagesConfirmed(1);
@@ -187,7 +187,7 @@ namespace OpenLogReplicator {
         try {
             // Before anything, read the latest checkpoint
             readCheckpoint();
-            builderQueue = builder->firstBuilderQueue;
+            builderQueue = builder->firstBuilderQueue();
             oldSize = 0;
             currentQueueSize = 0;
 
@@ -222,7 +222,7 @@ namespace OpenLogReplicator {
     }
 
     void Writer::mainLoop() {
-        BuilderMsg* msg;
+        BuilderMessageHeader* msg;
         uint64_t newSize = 0;
         currentQueueSize = 0;
 
@@ -256,8 +256,8 @@ namespace OpenLogReplicator {
                     }
 
                 // Found something
-                msg = reinterpret_cast<BuilderMsg*>(builderQueue->data + oldSize);
-                if (builderQueue->size > oldSize + sizeof(struct BuilderMsg) && msg->size > 0) {
+                msg = reinterpret_cast<BuilderMessageHeader*>(builderQueue->data + oldSize);
+                if (builderQueue->size > oldSize + sizeof(struct BuilderMessageHeader) && msg->size > 0) {
                     newSize = builderQueue->size;
                     break;
                 }
@@ -268,8 +268,8 @@ namespace OpenLogReplicator {
             }
 
             // Send the message
-            while (oldSize + sizeof(struct BuilderMsg) < newSize && !ctx->hardShutdown) {
-                msg = reinterpret_cast<BuilderMsg*>(builderQueue->data + oldSize);
+            while (oldSize + sizeof(struct BuilderMessageHeader) < newSize && !ctx->hardShutdown) {
+                msg = reinterpret_cast<BuilderMessageHeader*>(builderQueue->data + oldSize);
                 if (msg->size == 0)
                     break;
 
@@ -288,7 +288,7 @@ namespace OpenLogReplicator {
                     break;
 
                 uint64_t size8 = (msg->size + 7) & 0xFFFFFFFFFFFFFFF8;
-                oldSize += sizeof(struct BuilderMsg);
+                oldSize += sizeof(struct BuilderMessageHeader);
 
                 // Message in one part - send directly from buffer
                 if (oldSize + size8 <= Builder::OUTPUT_BUFFER_DATA_SIZE) {
