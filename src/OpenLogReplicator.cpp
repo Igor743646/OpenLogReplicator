@@ -459,7 +459,7 @@ namespace OpenLogReplicator {
 
                 if (metricsJson.HasMember("type")) {
                     const char* metricsType = Ctx::getJsonFieldS(configFileName, Ctx::JSON_PARAMETER_LENGTH, metricsJson, "type");
-                    __attribute_maybe_unused__ uint64_t tagNames = Metrics::TAG_NAMES_NONE;
+                    [[maybe_unused]] uint64_t tagNames = Metrics::TAG_NAMES_NONE;
 
                     if (metricsJson.HasMember("tag-names")) {
                         const char* tagNamesStr = Ctx::getJsonFieldS(configFileName, Ctx::JSON_TOPIC_LENGTH, metricsJson, "tag-names");
