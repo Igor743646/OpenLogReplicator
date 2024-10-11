@@ -51,7 +51,7 @@ find_package(Threads REQUIRED)
 
 # RapidJSON
 if (WITH_RAPIDJSON)
-    include_directories(${WITH_RAPIDJSON}/include)
+    include_directories(SYSTEM ${WITH_RAPIDJSON}/include)
 else ()
     message(FATAL_ERROR "plase provide WITH_RAPIDJSON parameter with path to rapidjson library")
 endif ()
