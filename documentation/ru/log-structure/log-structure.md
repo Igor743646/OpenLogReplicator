@@ -11,7 +11,7 @@
 
 ### Блок 1 (Заголовок файла)
 
-![](https://github.com/Igor743646/OpenLogReplicator/blob/master/documentation/ru/images/block1.png?raw=true)
+![](https://github.com/Igor743646/OpenLogReplicator/blob/master/documentation/ru/log-structure/images/block1.png?raw=true)
 
 Структура:
 
@@ -54,7 +54,7 @@ $$ (67 + 1) * 512 = 34816 \simeq 34,8Кб $$
 
 ### Стандартный заголовок блока
 
-![](https://github.com/Igor743646/OpenLogReplicator/blob/master/documentation/ru/images/block_header.png?raw=true)
+![](https://github.com/Igor743646/OpenLogReplicator/blob/master/documentation/ru/log-structure/images/block_header.png?raw=true)
 
 Структура:
 
@@ -120,7 +120,7 @@ fn calcChSum(ref StandartBlock block) {
 
 ### Блок 2 (Заголовок redo log файла)
 
-![](https://github.com/Igor743646/OpenLogReplicator/blob/master/documentation/ru/images/block2.png?raw=true)
+![](https://github.com/Igor743646/OpenLogReplicator/blob/master/documentation/ru/log-structure/images/block2.png?raw=true)
 
 Структура:
 
