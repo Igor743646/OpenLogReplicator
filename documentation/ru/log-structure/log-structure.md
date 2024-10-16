@@ -313,6 +313,15 @@ fn TimeFormat(Time time) {
 
 ## Redo Record
 
+Структура:
+
+```rust
+struct Record {
+    RecordHeader record_header;
+    Char data[record_header.record_size - sizeof(record_header)];
+};
+```
+
 Запись повтора, также известная как Redo Entry (Redo Record), содержит все изменения для данного SCN. Запись имеет
 заголовок и один или несколько “векторов изменений”. Для данного события может быть один или несколько векторов изменений. 
 Например, если пользователь выполняет INSERT в таблицу с индексом, то создается несколько
@@ -331,18 +340,18 @@ struct RecordHeader {
     u32 record_size;
     u8 vld;
     padding[1];
-    u48 scn;
+    RecordSCN scn;
     u16 sub_scn;
     padding[10];
         
     if (vld & 0x4) {
-        u16 lwn_num;
-        u16 lwn_num_max;
-        u32 lwn_size;
+        u16 record_num;
+        u16 record_num_max;
+        u32 records_count;
         padding[8];
-        Scn lwn_scn;
+        Scn records_scn;
         padding[16];
-        Time lwn_timestamp;
+        Time records_timestamp;
     }
 };
 ```
@@ -352,11 +361,124 @@ struct RecordHeader {
 
 Первые 4 байта заголовка `record_size` определяют размер записи повтора, включая сам заголовок и запись размера.
 
-По 6 байту от заголовка блока записывается 6байтный `scn` (что он означет не известно), а за ним `sub_scn`, обозначающий номер записи повтора, 
-относящегося к текущему блоку.
+По 6 байту от заголовка блока записывается 6-байтный `scn` (что он означет не известно), а за ним `sub_scn`, обозначающий номер записи повтора, относящегося к текущему блоку.
 
 Если 3 бит `vld` справа проставлен в 1, то это означает начало нового блока записей повтора. Тогда в заголовке указываются 2 числа:
-`lwn_num` и `lwn_num_max`, предназначение которых неизвестно. Далее идёт `lwn_size`, указывающий количество записей повтора в блоке.
+`record_num` и `record_num_max`, предназначение которых неизвестно. Далее идёт `records_count`, указывающий количество записей повтора в блоке.
 Следующие 4 байта неизвестны, однако на практике копируют количество записей в блоке. Далее идёт 3 записи SCN, первая из которых идентифицируется, как SCN записи повтора. В конце записывается timestamp блока.
 
+## Change Vector
 
+Как упомяналось выше, записи повтора хранят один или несколько векторов изменений, каждому из которых соответствует некоторый операционный код.
+Каждый вектор начинается с заголовка. Однако прежде стоит рассмотреть, что такое коды операций:
+
+### Operation code
+
+```rust
+struct OpCode {
+    u8 layer_code;
+    u8 sub_code;
+};
+```
+
+Первым `layer_code` и вторым `sub_code` байтами заголовка вектора изменений являются кодом операции. Всего их комбинаций не менее 300, однако для восстановления DML операций достаточно знать лишь ограниченное количество.
+
+| Layer | Sub | Описание |
+|-------:|-----|----------|
+| Transaction Undo Management | |  |
+| 5     | 2   | Update table in undo segment header (transaction begin) |
+| 5     | 4   | Update transaction table (commit/rollback transaction) |
+| 5     | 1   | Update table in undo segment block |
+| 5     | 6   | Mark undo record "user undo done" (rollback) |
+| Row access | | |
+| 11    | 2   | Insert single row |
+| 11    | 3   | Delete single row |
+| 11    | 4   | Lock row |
+| 11    | 5   | Update row |
+| 11    | 11  | Insert multiple rows |
+| 11    | 12  | Delete multiple rows |
+| ... | | |
+
+
+Каждая DML операция генерирует некоторую последовательность векторов изменений:
+
+| | Statements |  | OpCode list |
+|-|------------|--|-------------:|
+| Insert single row ||||
+| | -- Statement#1<br> INSERT INTO t1 VALUES (1); | HEADER <br> UNDO#1 <br> REDO#1 |  5.2 <br > 5.1 <br> 11.2 |
+| | -- Statement#2<br> INSERT INTO t1 VALUES (2); | UNDO#2 <br> REDO#2 | 5.1 <br> 11.2 |
+| | COMMIT; | COMMIT | 5.4 |
+| Insert multiple rows ||||
+| | -- Statement#1<br> INSERT INTO t1 <br> SELECT * FROM t2; | HEADER <br> UNDO#1 <br> REDO#1 |  5.2 <br > 5.1 <br> 11.11 |
+| | COMMIT; | COMMIT | 5.4 |
+| Update single row ||||
+| | -- Statement#1<br> UPDATE t1 SET c2 = c2 + 1 <br> WHERE c1 = 1; | HEADER <br> UNDO#1 <br> REDO#1 |  5.2 <br > 5.1 <br> 11.5 |
+| | -- Statement#2<br> UPDATE t1 SET c2 = c2 + 1 <br> WHERE c1 = 2; | UNDO#2 <br> REDO#2 | 5.1 <br> 11.5 |
+| | COMMIT; | COMMIT | 5.4 |
+| Update multiple rows ||||
+| | -- T1 contains 2 rows <br> UPDATE t1 SET c2 = c2 + 1; | HEADER <br> UNDO#1 <br> REDO#1 <br> UNDO#2 <br> REDO#2 |  5.2 <br > 5.1 <br> 11.5 <br > 5.1 <br> 11.5 |
+| | COMMIT; | COMMIT | 5.4 |
+| Delete single row ||||
+| | -- Statement#1<br> DELETE FROM t1 WHERE c1 = 1 | HEADER <br> UNDO#1 <br> REDO#1 |  5.2 <br > 5.1 <br> 11.3 |
+| | -- Statement#2<br> DELETE FROM t1 WHERE c1 = 2 | UNDO#2 <br> REDO#2 | 5.1 <br> 11.3 |
+| | COMMIT; | COMMIT | 5.4 |
+| Delete multiple rows ||||
+| | -- T1 contains 2 rows <br> DELETE FROM t1; | HEADER <br> UNDO#1 <br> REDO#1 <br> UNDO#2 <br> REDO#2 |  5.2 <br > 5.1 <br> 11.3 <br > 5.1 <br> 11.3 |
+| | COMMIT; | COMMIT | 5.4 |
+| Select for update single row ||||
+| | -- Statement #1 <br> SELECT c2 FROM t1 <br> WHERE c1 = 1 <br> FOR UPDATE; | HEADER <br> UNDO#1 <br> REDO#1 |  5.2 <br > 5.1 <br> 11.4 |
+| | -- Statement#2<br> UPDATE t1 SET c2 = c2 + 1 <br> WHERE c1 = 2; | UNDO#2 <br> REDO#2 | 5.1 <br> 11.5 |
+| | COMMIT; | COMMIT | 5.4 |
+| Select for update multiple rows ||||
+| | -- T1 contains 2 rows <br> SELECT c2 FROM t1 <br> FOR UPDATE; | HEADER <br> UNDO#1 <br> REDO#1 <br> UNDO#2 <br> REDO#2 |  5.2 <br > 5.1 <br> 11.4 <br > 5.1 <br> 11.4 |
+| | COMMIT; | COMMIT | 5.4 |
+| Insert single row (rollbacked) ||||
+| | -- Statement#1<br> INSERT INTO t1 VALUES (1); | HEADER <br> UNDO#1 <br> REDO#1 |  5.2 <br > 5.1 <br> 11.2 |
+| | -- Statement#2<br> INSERT INTO t1 VALUES (2); | UNDO#2 <br> REDO#2 | 5.1 <br> 11.2 |
+| | ROLLBACK; | UNDO#2 <br> REDO#2 <br> UNDO#2 <br> REDO#2 <br> COMMIT | 11.3 <br> 5.6 <br> 11.3 <br> 5.6 <br> 5.4 |
+
+### Change Vector Header
+
+Структура:
+
+```rust
+struct VectorHeader {
+    OpCode operation_code;
+    u16 class;
+    u16 absolute_file_number;
+    padding[2];
+    Dba dba;
+    Scn vector_scn;
+    u8 sequence_number;
+    u8 change_type;
+    padding[2];
+    
+    if (VERSION >= 0x0C100000) {
+        u16 container_id;
+        padding[2];
+        u16 flag;
+        padding[2];
+    }
+    
+    u16 fields_count [[format_read("ReadFieldsCount")]];
+    u16 fields_sizes[(fields_count - 2) / 2];
+};
+```
+
+Первые два байта, как говорилось выше, отводятся под код операции. Далее идет запись `class`, которая
+судя по источникам, является номером класса блока (как в таблице X$BH.CLASS):
+
+| Class | Description |
+|-------|-------------|
+|1 | Data Block |
+|2 | Sort Block |
+|3 | Deferred Undo Segment Blocks |
+|4 | Segment Header Block (Table) |
+|5 | Deferred Undo Segment Header Blocks |
+|6 | Free List Blocks |
+|7 | Extent Map Blocks |
+|8 | Space Management Bitmap Blocks |
+|9 | Space Management Index Blocks |
+|10 | Unused |
+|11 + 2r | Segment Header for Undo Segment r |
+|12 + 2r | Data Blocks for Undo Segment r |
