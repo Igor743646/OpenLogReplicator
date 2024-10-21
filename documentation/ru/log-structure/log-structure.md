@@ -466,19 +466,59 @@ struct VectorHeader {
 ```
 
 Первые два байта, как говорилось выше, отводятся под код операции. Далее идет запись `class`, которая
-судя по источникам, является номером класса блока (как в таблице X$BH.CLASS):
+судя по источникам, является номером класса блока (как в таблице V$BH.CLASS):
 
-| Class | Description |
-|-------|-------------|
-|1 | Data Block |
-|2 | Sort Block |
-|3 | Deferred Undo Segment Blocks |
-|4 | Segment Header Block (Table) |
-|5 | Deferred Undo Segment Header Blocks |
-|6 | Free List Blocks |
-|7 | Extent Map Blocks |
-|8 | Space Management Bitmap Blocks |
-|9 | Space Management Index Blocks |
-|10 | Unused |
-|11 + 2r | Segment Header for Undo Segment r |
-|12 + 2r | Data Blocks for Undo Segment r |
+| Class | Description | Class | Description |
+|-------|-------------|-------|-------------|
+| 1 | data block                                | 10 | 3rd level bitmap block                   |
+| 2 | sort block                                | 11 | bitmap block                             |
+| 3 | deferred undo segment block               | 12 | bitmap index block                       |
+| 4 | segment header block (table)              | 13 | file header block                        |
+| 5 | deferred undo segment header              | 14 | unused                                   |
+| 6 | free list blocks                          | 15 | system undo segment header               |
+| 7 | extent map blocks                         | 16 | system undo segment block                |
+| 8 | 1st level bitmap block                    | 15 + 2r | segment header for undo segment r   |
+| 9 | 2nd level bitmap block                    | 16 + 2r | data blocks for undo segment r      |
+
+
+С помощью данного поля мы можем определить номер сегмента отмены (Undo Segment Number - USN), 
+если `class` >= 15:
+$$\text{USN} = \frac{\text{class} - 15}{2}$$
+
+Следующее поле `absolute_file_number` указывается на номер физического файла, присвоенный Oracle'ом.
+
+Далее идёт поле `dba` (database block address), содержащая относительный номер файла и номер блока.
+
+```rust
+bitfield DBA {
+    block_number : 22;
+    relative_file_number : 10;
+};
+```
+
+Затем пишется SCN ветора изменения `vector_scn`. Далее два байта `requence_number` и `change_type`.
+Если версия Oracle >= 12.1, то в заголовок также добавляется информация об id контейнера `container_id` и некий флаг `flag`. Заканчивается заголовок количеством полей `fields_count` в данном векторе измения и последовательным массивом `fields_sizes` размеров каждого поля.
+
+## OpCode 5.2
+
+Структура:
+
+```rust
+struct OpCode0502 {
+    VectorHeader header;
+    u16 slot_number;
+    padding[2];
+    u32 sequence_number;
+    UBA uba;
+    padding[1];
+    u16 flag;
+    u16 siz;
+    u8 fbi;
+    padding[3];
+    XID pxid;
+};
+```
+
+## OpCode 5.1
+
+
