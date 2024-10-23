@@ -498,37 +498,100 @@ $$\text{USN} = \frac{\text{class} - 15}{2}$$
 
 Следующее поле `absolute_file_number` указывается на номер физического файла, присвоенный Oracle'ом.
 
-Далее идёт поле `dba` (database block address), содержащая относительный номер файла и номер блока.
+Далее идёт 4-байтное поле `dba` (database block address), содержащее относительный номер файла и номер блока.
 
 ```rust
-bitfield DBA {
+bitfield Dba {
     block_number : 22;
     relative_file_number : 10;
 };
 ```
 
+Тут старшие 22 бита отводятся под номер блока, а младшие 10 бит под относительные номер файла.
+
 Затем пишется SCN ветора изменения `vector_scn`. Далее два байта `sequence_number` и `change_type`.
-Если версия Oracle >= 12.1, то в заголовок также добавляется информация об id контейнера `container_id` и некий флаг `flag`. Заканчивается заголовок количеством полей `fields_count` в данном векторе измения и последовательным массивом `fields_sizes` размеров каждого поля.
+Если версия Oracle >= 12.1, то в заголовок по 24 байту также добавляется информация об id контейнера `container_id` и по 28 байту некий флаг `flag`. Таким образом заголовок составляет 24 байта, а в версии >= 12.1 - 32 байта.
+
+После заголовка записываются `fields_count` - количество полей в данном векторе измения и последовательным массивом `fields_sizes` размеров каждого поля. На самом деле `fields_count` указывает на
+размер в байтах информации о размерах полей вектора изменения, включая их количество. Таким образом, количество полей вычисляется по формуле:
+
+$$\text{N} = \frac{\text{fields\_count} - 2}{2}$$
+
+При этом сами поля будут начинаться с адреса кратного четырём, поэтому фактический размер массива с
+размерами полей будет:
+
+$$ \text{Len} = (\text{fields\_count} + 2) \wedge \text{0xFFFC} $$
+
+В зависимости от этого в конце либо будет, либо не будет отступ в 2 байта.
 
 ## OpCode 5.2
+
+![](https://github.com/Igor743646/OpenLogReplicator/blob/master/documentation/ru/log-structure/images/opcode0502.png?raw=true)
 
 Структура:
 
 ```rust
-struct OpCode0502 {
-    VectorHeader header;
-    u16 slot_number;
+struct ktudh {
+    u16 xid_slot;
     padding[2];
-    u32 sequence_number;
-    UBA uba;
-    padding[1];
-    u16 flag;
+    u32 xid_sequence;
+    Uba uba;
+    u16 flg;
     u16 siz;
     u8 fbi;
     padding[3];
-    XID pxid;
+    Xid pxid;
+};
+
+struct pdb {
+    u32 pdb_id;
+};
+
+struct kteop {
+    padding[4];
+    u32 ext;
+    padding[4];
+    u32 ext_size;
+    u32 highwater;
+    padding[4];
+    u32 offset;
+    padding[8];
+};
+
+struct OpCode0502 {
+    VectorHeader header;
+    
+    ktudh field1;
+    
+    if (VERSION < EVersion::ORACLE_12_1)
+        break;
+    
+    if (((header.fields_count - 2) / 2) < 2)
+        break;
+    
+    if (header.fields_sizes[1] == 4) {
+        $ = ($ + 3) & 0xFFFC;
+        pdb field2;
+        break;
+    }
+    
+    $ = ($ + 3) & 0xFFFC;
+    kteop field2;
+    
+    if (((header.fields_count - 2) / 2) < 3) {
+        break;
+    }
+    
+    $ = ($ + 3) & 0xFFFC;
+    pdb field3;   
 };
 ```
+
+Операционный код 5.2 состоит из одного, два или трёх полей. Для нас представляет интерес только первое поле `ktudh`, откуда мы
+составляем XID по полям `xid_slot` и `xid_sequence` (при этом undo segment number мы берем из прочитанного в заголовке вектора
+номера класса) и флаг `flg`. Больше никакой информации нам из вектора 5.2 не нужно.
+
+Для версий выше 12.1 могут добавляться поля `pdb` (4 байта) и `kteop` (36 байт), но они интереса не представляют
 
 ## OpCode 5.1
 
